@@ -80,6 +80,23 @@ const View3D = (() => {
     function initScene() {
         canvas = document.getElementById('view3d-canvas');
         if (!canvas || typeof THREE === 'undefined') return;
+
+        // Test WebGL availability before creating the renderer
+        try {
+            var testCtx = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!testCtx) throw new Error('WebGL not available');
+        } catch (_) {
+            initialized = true; // prevent retries
+            var pane = document.getElementById('view3d-pane');
+            if (pane) {
+                pane.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-dim);font-size:14px;text-align:center;padding:40px;">' +
+                    '<div><div style="font-size:48px;margin-bottom:16px;">&#9888;</div>' +
+                    '<div style="font-weight:600;margin-bottom:8px;">WebGL Not Available</div>' +
+                    '<div>Your browser or environment does not support WebGL.<br>The 3D network graph requires a GPU-capable browser.</div></div></div>';
+            }
+            return;
+        }
+
         initialized = true;
 
         scene = new THREE.Scene();
