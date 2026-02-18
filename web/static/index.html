@@ -20,20 +20,38 @@
             <div class="toolbar-sep"></div>
             <select id="filter-preset">
                 <option value="">Preset Filters</option>
-                <option value="tcp">TCP</option>
-                <option value="udp">UDP</option>
-                <option value="dns">DNS</option>
-                <option value="http">HTTP</option>
-                <option value="arp">ARP</option>
-                <option value="icmp">ICMP</option>
-                <option value="ipv6">IPv6</option>
-                <option value="tcp && !dns">TCP (no DNS)</option>
-                <option value="!arp">No ARP</option>
-                <option value="port=80">Port 80</option>
-                <option value="port=443">Port 443</option>
-                <option value="port=53">Port 53 (DNS)</option>
+                <optgroup label="Direction">
+                    <option value="inbound">Inbound</option>
+                    <option value="outbound">Outbound</option>
+                    <option value="local">Local Only</option>
+                    <option value="external">External</option>
+                    <option value="broadcast">Broadcast/Multicast</option>
+                    <option value="unicast">Unicast</option>
+                </optgroup>
+                <optgroup label="Protocol">
+                    <option value="tcp">TCP</option>
+                    <option value="udp">UDP</option>
+                    <option value="dns">DNS</option>
+                    <option value="http">HTTP</option>
+                    <option value="arp">ARP</option>
+                    <option value="icmp">ICMP</option>
+                    <option value="ipv6">IPv6</option>
+                </optgroup>
+                <optgroup label="Combined">
+                    <option value="tcp && !dns">TCP (no DNS)</option>
+                    <option value="!arp">No ARP</option>
+                    <option value="outbound && tcp">Outbound TCP</option>
+                    <option value="inbound && !arp">Inbound (no ARP)</option>
+                    <option value="external && dns">External DNS</option>
+                </optgroup>
+                <optgroup label="Port">
+                    <option value="port=80">Port 80</option>
+                    <option value="port=443">Port 443</option>
+                    <option value="port=53">Port 53 (DNS)</option>
+                    <option value="port=22">Port 22 (SSH)</option>
+                </optgroup>
             </select>
-            <input id="display-filter" type="text" placeholder="Display filter (e.g. tcp, ip==10.0.0.1, ip.src==...)">
+            <input id="display-filter" type="text" placeholder="Filter: tcp, inbound, outbound, ip==10.0.0.1, broadcast...">
             <div class="toolbar-sep"></div>
             <button id="upload-btn">
                 Open PCAP

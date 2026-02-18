@@ -11,9 +11,49 @@ const Filters = (() => {
     //   ip.dst==ADDR or ip.dst=ADDR               — destination address match
     //   ip==ADDR or ip=ADDR                       — match src OR dst (strip port)
     //   port==N or port=N                         — info/addr contains :N
+    //   inbound / incoming                        — dst is a local address
+    //   outbound / outgoing                       — src is a local address
+    //   local                                     — both src and dst are local
+    //   external                                  — at least one side is non-local
+    //   broadcast                                 — dst is broadcast/multicast
+    //   unicast                                   — dst is not broadcast/multicast
     //   FREETEXT                                  — substring match across fields
     //   expr && expr, expr || expr                — logical combination
     //   !expr                                     — negation
+
+    // Local IP addresses — populated by app.js when interfaces are received
+    const localAddrs = new Set();
+
+    function setLocalAddresses(addrs) {
+        localAddrs.clear();
+        if (addrs) {
+            addrs.forEach(a => localAddrs.add(a));
+        }
+        // Always include common loopback
+        localAddrs.add('127.0.0.1');
+        localAddrs.add('::1');
+    }
+
+    function isLocalAddr(addr) {
+        if (!addr) return false;
+        const ip = stripPort(addr);
+        return localAddrs.has(ip);
+    }
+
+    function isBroadcast(addr) {
+        if (!addr) return false;
+        const ip = stripPort(addr);
+        // IPv4 broadcast
+        if (ip === '255.255.255.255') return true;
+        if (ip.endsWith('.255')) return true;
+        if (ip === '0.0.0.0') return true;
+        // Multicast IPv4 (224.0.0.0 - 239.255.255.255)
+        const first = parseInt(ip.split('.')[0], 10);
+        if (first >= 224 && first <= 239) return true;
+        // IPv6 multicast (ff00::/8)
+        if (ip.toLowerCase().startsWith('ff')) return true;
+        return false;
+    }
 
     function compile(filterText) {
         if (!filterText || !filterText.trim()) return null;
@@ -100,6 +140,44 @@ const Filters = (() => {
             };
         }
 
+        // Direction keywords
+        if (lowerToken === 'inbound' || lowerToken === 'incoming' || lowerToken === 'in') {
+            return {
+                func: (pkt) => isLocalAddr(pkt.dstAddr) && !isLocalAddr(pkt.srcAddr),
+                end
+            };
+        }
+        if (lowerToken === 'outbound' || lowerToken === 'outgoing' || lowerToken === 'out') {
+            return {
+                func: (pkt) => isLocalAddr(pkt.srcAddr) && !isLocalAddr(pkt.dstAddr),
+                end
+            };
+        }
+        if (lowerToken === 'local' || lowerToken === 'internal') {
+            return {
+                func: (pkt) => isLocalAddr(pkt.srcAddr) && isLocalAddr(pkt.dstAddr),
+                end
+            };
+        }
+        if (lowerToken === 'external' || lowerToken === 'remote') {
+            return {
+                func: (pkt) => !isLocalAddr(pkt.srcAddr) || !isLocalAddr(pkt.dstAddr),
+                end
+            };
+        }
+        if (lowerToken === 'broadcast' || lowerToken === 'multicast') {
+            return {
+                func: (pkt) => isBroadcast(pkt.dstAddr),
+                end
+            };
+        }
+        if (lowerToken === 'unicast') {
+            return {
+                func: (pkt) => !isBroadcast(pkt.dstAddr),
+                end
+            };
+        }
+
         // ip==ADDR (match either src or dst, stripping port)
         const ipMatch = token.match(/^ip\s*={1,2}\s*(.+)$/i);
         if (ipMatch) {
@@ -151,5 +229,5 @@ const Filters = (() => {
         return i > 0 ? addr.substring(0, i) : addr;
     }
 
-    return { compile };
+    return { compile, setLocalAddresses };
 })();

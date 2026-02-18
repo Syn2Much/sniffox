@@ -184,13 +184,19 @@ const App = (() => {
     function populateInterfaces(interfaces) {
         els.interfaceSelect.innerHTML = '<option value="">-- Select Interface --</option>';
         if (!interfaces) return;
+        const allAddrs = [];
         interfaces.forEach(iface => {
             const opt = document.createElement('option');
             opt.value = iface.name;
             const addrs = iface.addresses ? ` (${iface.addresses.join(', ')})` : '';
             opt.textContent = iface.name + addrs;
             els.interfaceSelect.appendChild(opt);
+            if (iface.addresses) {
+                iface.addresses.forEach(a => allAddrs.push(a));
+            }
         });
+        // Feed local IPs to the filter engine for direction filters
+        Filters.setLocalAddresses(allAddrs);
     }
 
     function startCapture() {
