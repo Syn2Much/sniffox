@@ -303,7 +303,6 @@ const App = (() => {
     function initResizers() {
         setupResizer('resizer-1', 'packet-list-pane', 'packet-detail-pane');
         setupResizer('resizer-2', 'packet-detail-pane', 'hex-view-pane');
-        setupResizer('resizer-3', 'hex-view-pane', 'view3d-pane');
     }
 
     function setupResizer(resizerId, topPaneId, bottomPaneId) {

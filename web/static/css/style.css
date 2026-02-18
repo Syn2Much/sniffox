@@ -229,9 +229,81 @@ html, body {
     border-bottom: 1px solid var(--border);
 }
 
+/* 3D Accordion */
+.v3d-accordion {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.v3d-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: var(--bg-surface);
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+}
+.v3d-accordion-header:hover {
+    background: var(--bg-overlay);
+}
+
+.v3d-accordion-arrow {
+    font-size: 10px;
+    color: var(--text-dim);
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.v3d-accordion-hint {
+    font-size: 10px;
+    color: var(--text-dim);
+    flex: 1;
+    text-align: right;
+}
+
+.v3d-hdr-btn {
+    font-family: inherit;
+    font-size: 11px;
+    background: var(--bg-overlay);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+.v3d-hdr-btn:hover {
+    background: var(--bg-muted);
+}
+
+/* Hide toolbar buttons when accordion is closed */
+.v3d-closed .v3d-hide-closed {
+    display: none;
+}
+
+.v3d-accordion-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--canvas-bg);
+    height: 280px;
+    transition: height 0.2s ease;
+}
+
+.v3d-closed .v3d-accordion-body {
+    height: 0;
+    overflow: hidden;
+}
+
 #view3d-pane {
-    flex: 1.5;
-    min-height: 100px;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;

@@ -1,10 +1,16 @@
 // view3d.js — 3D network graph visualization using Three.js + OrbitControls
+// Lazy-loaded: Three.js scene only initializes when user opens the accordion.
 'use strict';
 
 const View3D = (() => {
     let scene, camera, renderer, controls, canvas;
     let animating = true;
     let expanded = false;
+    let initialized = false;
+    let accordionOpen = false;
+
+    // Packets queued before the scene is ready
+    const pendingPackets = [];
 
     // Default camera position for reset
     const CAM_DEFAULT = { x: 0, y: 120, z: 200 };
@@ -47,9 +53,42 @@ const View3D = (() => {
     const protoStats = {};
     const ipStats = {};
 
+    // Called on DOMContentLoaded — only wires the accordion header, nothing heavy
     function init() {
+        const header = document.getElementById('view3d-accordion-header');
+        if (header) {
+            header.addEventListener('click', (e) => {
+                // Don't toggle if clicking a button inside the header
+                if (e.target.closest('.v3d-hdr-btn')) return;
+                toggleAccordion();
+            });
+        }
+    }
+
+    function toggleAccordion() {
+        const acc = document.getElementById('view3d-accordion');
+        if (!acc) return;
+        accordionOpen = !accordionOpen;
+        acc.classList.toggle('v3d-closed', !accordionOpen);
+
+        const arrow = document.getElementById('v3d-arrow');
+        const hint = document.getElementById('v3d-hint');
+        if (arrow) arrow.innerHTML = accordionOpen ? '&#9660;' : '&#9654;';
+        if (hint) hint.textContent = accordionOpen ? '' : 'Click to open';
+
+        if (accordionOpen && !initialized) {
+            initScene();
+        }
+        if (accordionOpen) {
+            setTimeout(updateRendererSize, 50);
+        }
+    }
+
+    // Heavy Three.js initialization — only runs once when user first opens the accordion
+    function initScene() {
         canvas = document.getElementById('view3d-canvas');
         if (!canvas || typeof THREE === 'undefined') return;
+        initialized = true;
 
         scene = new THREE.Scene();
 
@@ -60,7 +99,7 @@ const View3D = (() => {
         renderer.setPixelRatio(window.devicePixelRatio);
         updateRendererSize();
 
-        // OrbitControls — left drag=orbit, right drag=pan, scroll=zoom
+        // OrbitControls
         if (THREE.OrbitControls) {
             controls = new THREE.OrbitControls(camera, canvas);
             controls.enableDamping = true;
@@ -134,6 +173,12 @@ const View3D = (() => {
         window.addEventListener('resize', updateRendererSize);
 
         animate();
+
+        // Flush any packets that arrived before the scene was ready
+        for (const pkt of pendingPackets) {
+            addPacketInternal(pkt);
+        }
+        pendingPackets.length = 0;
     }
 
     function initSlider(id, key, min, max) {
@@ -153,11 +198,9 @@ const View3D = (() => {
     }
 
     function applySettings() {
-        // Update edge opacity
         edges.forEach(e => {
             e.line.material.opacity = settings.edgeOpacity;
         });
-        // Update node scale
         nodes.forEach(n => {
             const base = Math.min(3, 1 + Math.log2(Math.max(1, n.packetCount)) * 0.3);
             n.mesh.scale.setScalar(base * settings.nodeScale);
@@ -166,13 +209,11 @@ const View3D = (() => {
     }
 
     function applyVisibility() {
-        // We track proto per edge/node, so refilter
-        edges.forEach((e, key) => {
+        edges.forEach((e) => {
             const proto = e.proto || 'other';
             const vis = protoVisible[proto] !== false;
             e.line.visible = vis;
         });
-        // For particles, they'll just fade naturally
     }
 
     function applyHighlight() {
@@ -205,7 +246,6 @@ const View3D = (() => {
         const overlay = document.getElementById('v3d-expand-overlay');
         if (overlay) {
             overlay.classList.add('v3d-expanded');
-            // Move canvas into overlay
             const target = document.getElementById('v3d-expand-canvas-wrap');
             if (target && canvas) target.appendChild(canvas);
         }
@@ -218,7 +258,6 @@ const View3D = (() => {
         expanded = false;
         const overlay = document.getElementById('v3d-expand-overlay');
         if (overlay) overlay.classList.remove('v3d-expanded');
-        // Move canvas back
         const pane = document.getElementById('view3d-pane');
         const legend = document.getElementById('view3d-legend');
         if (pane && canvas) {
@@ -242,10 +281,9 @@ const View3D = (() => {
             const pane = document.getElementById('view3d-pane');
             if (!pane) return;
             const rect = pane.getBoundingClientRect();
-            const toolbarH = 30;
             const legendH = 24;
             w = rect.width;
-            h = Math.max(60, rect.height - toolbarH - legendH);
+            h = Math.max(60, rect.height - legendH);
         }
         canvas.width = w;
         canvas.height = h;
@@ -269,7 +307,17 @@ const View3D = (() => {
         if (btn) btn.textContent = animating ? 'Pause' : 'Resume';
     }
 
+    // Public addPacket — queues if scene not ready yet
     function addPacket(pkt) {
+        if (!initialized) {
+            // Cap queue so we don't eat memory while closed
+            if (pendingPackets.length < 2000) pendingPackets.push(pkt);
+            return;
+        }
+        addPacketInternal(pkt);
+    }
+
+    function addPacketInternal(pkt) {
         if (!scene || !pkt.srcAddr || !pkt.dstAddr) return;
         const src = pkt.srcAddr.split(':')[0] || pkt.srcAddr;
         const dst = pkt.dstAddr.split(':')[0] || pkt.dstAddr;
@@ -296,23 +344,18 @@ const View3D = (() => {
         srcNode.packetCount++;
         dstNode.packetCount++;
 
-        // Scale nodes by activity
         const srcScale = Math.min(3, 1 + Math.log2(srcNode.packetCount) * 0.3) * settings.nodeScale;
         const dstScale = Math.min(3, 1 + Math.log2(dstNode.packetCount) * 0.3) * settings.nodeScale;
         srcNode.mesh.scale.setScalar(srcScale);
         dstNode.mesh.scale.setScalar(dstScale);
 
-        // Edge
         const edgeKey = src + '->' + dst;
         if (!edges.has(edgeKey)) {
             createEdge(edgeKey, srcNode, dstNode, color, mappedProto);
         }
         edges.get(edgeKey).count++;
 
-        // Particle
         spawnParticle(srcNode, dstNode, color);
-
-        // Update stats display
         updateStatsOverlay();
     }
 
@@ -447,7 +490,6 @@ const View3D = (() => {
             const el = document.getElementById('v3d-stats-content');
             if (!el) return;
 
-            // Top talkers (top 5 IPs by packet count)
             const sorted = Object.entries(ipStats).sort((a, b) => b[1] - a[1]).slice(0, 5);
             const nodeCount = nodes.size;
             const edgeCount = edges.size;
@@ -457,14 +499,12 @@ const View3D = (() => {
             html += `<div class="v3d-stats-row"><span>Edges:</span><strong>${edgeCount}</strong></div>`;
             html += `<div class="v3d-stats-row"><span>Packets:</span><strong>${totalPkts}</strong></div>`;
 
-            // Protocol breakdown
             html += '<div class="v3d-stats-sep">Protocols</div>';
             Object.entries(protoStats).sort((a, b) => b[1] - a[1]).forEach(([proto, count]) => {
                 const pct = totalPkts > 0 ? (count / totalPkts * 100).toFixed(0) : 0;
                 html += `<div class="v3d-stats-row"><span>${proto.toUpperCase()}</span><strong>${count} (${pct}%)</strong></div>`;
             });
 
-            // Top talkers
             if (sorted.length > 0) {
                 html += '<div class="v3d-stats-sep">Top Talkers</div>';
                 sorted.forEach(([ip, count]) => {
@@ -474,7 +514,6 @@ const View3D = (() => {
 
             el.innerHTML = html;
 
-            // Clickable IPs
             el.querySelectorAll('.v3d-stats-ip').forEach(row => {
                 row.addEventListener('click', () => {
                     const ip = row.dataset.ip;
@@ -490,6 +529,7 @@ const View3D = (() => {
     }
 
     function clear() {
+        pendingPackets.length = 0;
         if (!scene) return;
         nodes.forEach(n => {
             scene.remove(n.mesh); scene.remove(n.label);
@@ -506,7 +546,6 @@ const View3D = (() => {
         });
         particles.length = 0;
 
-        // Clear stats
         Object.keys(protoStats).forEach(k => delete protoStats[k]);
         Object.keys(ipStats).forEach(k => delete ipStats[k]);
         const el = document.getElementById('v3d-stats-content');
