@@ -929,6 +929,390 @@ tr.proto-ipv6 { color: var(--mauve); }
     font-size: 10px;
 }
 
+/* ==================== SECURITY DASHBOARD ==================== */
+
+/* Dashboard grid */
+.sec-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.sec-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.sec-card-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+.sec-card-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+}
+
+.sec-card-metrics {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 6px;
+}
+
+.sec-bw-totals {
+    margin-bottom: 8px;
+}
+
+.sec-metric {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.sec-metric-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.sec-metric-val-sm {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-sub);
+}
+
+.sec-metric-unit {
+    font-size: 10px;
+    color: var(--text-dim);
+}
+
+.sec-metric-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    min-width: 28px;
+}
+
+/* Threat gauge */
+.sec-threat-gauge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    border-radius: 5px;
+    transition: background 0.3s;
+}
+
+.threat-level-text {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+.threat-safe {
+    background: rgba(158, 206, 106, 0.15);
+    color: var(--green);
+}
+.threat-low {
+    background: rgba(122, 162, 247, 0.15);
+    color: var(--accent);
+}
+.threat-medium {
+    background: rgba(224, 175, 104, 0.15);
+    color: var(--yellow);
+}
+.threat-high {
+    background: rgba(255, 158, 100, 0.18);
+    color: var(--peach);
+}
+.threat-critical {
+    background: rgba(247, 118, 142, 0.2);
+    color: var(--red);
+}
+
+/* Sparkline */
+.sec-sparkline {
+    height: 32px;
+    margin-top: 4px;
+}
+
+.sec-sparkline svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.sec-sparkline-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+}
+
+.sec-sparkline-fill {
+    fill: var(--glow-accent);
+    stroke: none;
+}
+
+.sec-sparkline-line-green {
+    stroke: var(--green);
+}
+
+.sec-sparkline-fill-green {
+    fill: var(--glow-green);
+}
+
+/* Protocol bars */
+.sec-proto-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sec-proto-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+}
+
+.sec-proto-label {
+    width: 36px;
+    color: var(--text-sub);
+    font-weight: 600;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.sec-proto-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-overlay);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.sec-proto-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+
+.sec-proto-fill-tcp { background: var(--accent); }
+.sec-proto-fill-udp { background: var(--accent-dim); }
+.sec-proto-fill-dns { background: var(--teal); }
+.sec-proto-fill-icmp { background: var(--yellow); }
+.sec-proto-fill-arp { background: var(--peach); }
+.sec-proto-fill-http { background: var(--green); }
+.sec-proto-fill-other { background: var(--mauve); }
+
+.sec-proto-pct {
+    width: 32px;
+    color: var(--text-dim);
+    font-size: 10px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Top talkers */
+.sec-top-talkers {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sec-talker-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+}
+
+.sec-talker-ip {
+    width: 110px;
+    color: var(--text-sub);
+    font-family: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+
+.sec-talker-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-overlay);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.sec-talker-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.3s;
+}
+
+.sec-talker-count {
+    color: var(--text-dim);
+    font-size: 10px;
+    min-width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Attack tags */
+.sec-attack-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.sec-attack-tag {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.sec-attack-tag-critical {
+    background: rgba(247, 118, 142, 0.2);
+    color: var(--red);
+}
+.sec-attack-tag-high {
+    background: rgba(255, 158, 100, 0.18);
+    color: var(--peach);
+}
+.sec-attack-tag-medium {
+    background: rgba(224, 175, 104, 0.15);
+    color: var(--yellow);
+}
+.sec-attack-tag-low {
+    background: rgba(122, 162, 247, 0.12);
+    color: var(--accent);
+}
+
+/* DDoS Banner */
+.ddos-banner {
+    background: rgba(247, 118, 142, 0.08);
+    border: 2px solid var(--red);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    animation: ddos-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ddos-pulse {
+    0%, 100% { border-color: var(--red); box-shadow: 0 0 8px rgba(247, 118, 142, 0.2); }
+    50% { border-color: var(--peach); box-shadow: 0 0 20px rgba(247, 118, 142, 0.4); }
+}
+
+.ddos-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.ddos-banner-icon {
+    font-size: 18px;
+    color: var(--red);
+}
+
+.ddos-banner-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--red);
+}
+
+.ddos-type-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--red);
+    color: var(--bg-base);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ddos-banner-details {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.ddos-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ddos-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+}
+
+.ddos-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.ddos-chart {
+    height: 40px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.ddos-bar {
+    flex: 1;
+    background: var(--red);
+    border-radius: 2px 2px 0 0;
+    opacity: 0.7;
+    transition: height 0.2s;
+    min-height: 2px;
+}
+
+/* Alert log section header */
+.sec-alerts-section {
+    margin-top: 4px;
+}
+
+.sec-alerts-header {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Empty state for dashboard cards */
+.sec-card-empty {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    padding: 8px 0;
+}
+
 /* ==================== ANALYSIS PAGE ==================== */
 #analysis-toolbar {
     display: flex;

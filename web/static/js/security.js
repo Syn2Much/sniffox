@@ -1,4 +1,4 @@
-// security.js — Real-time threat detection engine
+// security.js — Real-time threat detection engine + security dashboard
 'use strict';
 
 const Security = (() => {
@@ -34,6 +34,38 @@ const Security = (() => {
 
     const AUTH_PORTS = new Set(['22', '23', '3389', '5900', '21', '3306', '5432', '1433', '6379', '27017']);
 
+    // ==================== DASHBOARD STATE ====================
+    // Traffic rate — rolling 60 one-second buckets
+    const RATE_BUCKETS = 60;
+    let rateBuckets = [];       // { pkts, bytes, ts }
+    let curBucket = { pkts: 0, bytes: 0, ts: 0 };
+
+    // Protocol distribution — lifetime counters
+    const protoCounts = { tcp: 0, udp: 0, dns: 0, icmp: 0, arp: 0, http: 0, other: 0 };
+
+    // Top talkers — IP -> packet count
+    const talkerCounts = {};
+
+    // Bandwidth (directional)
+    let bwInBytes = 0;
+    let bwOutBytes = 0;
+    let bwTotalIn = 0;
+    let bwTotalOut = 0;
+    const BW_BUCKETS = 60;
+    let bwBuckets = [];         // { inB, outB, ts }
+    let curBwBucket = { inB: 0, outB: 0, ts: 0 };
+
+    // Active attacks — Map<type+srcIp, { type, severity, title, srcIp, lastSeen }>
+    const activeAttacks = new Map();
+    const ACTIVE_ATTACK_TTL = 30000; // 30s
+
+    // DDoS state
+    let ddosState = null;       // { type, source, target, startTime, rateBuckets[] }
+    const DDOS_BARS = 30;
+    const DDOS_TIMEOUT = 15000; // hide after 15s of no new flood alerts
+
+    let dashboardInterval = null;
+
     function init() {
         container = document.getElementById('alert-list');
         badgeEl = document.getElementById('alert-badge');
@@ -42,6 +74,11 @@ const Security = (() => {
         const clearBtn = document.getElementById('btn-alerts-clear');
         if (clearBtn) {
             clearBtn.addEventListener('click', clear);
+        }
+
+        // Start dashboard refresh at 1s interval
+        if (!dashboardInterval) {
+            dashboardInterval = setInterval(refreshDashboard, 1000);
         }
     }
 
@@ -189,6 +226,61 @@ const Security = (() => {
                 `${srcIp} -> ${dstIp}: ${pkt.length} bytes (${proto.toUpperCase()}) — possible amplification`,
                 pkt.number, srcIp);
         }
+
+        // ==================== DASHBOARD FAST PATH ====================
+        // (no DOM writes — only counter increments)
+
+        const pktBytes = pkt.length || 0;
+        const sec = Math.floor(now / 1000);
+
+        // Traffic rate buckets
+        if (curBucket.ts !== sec) {
+            if (curBucket.ts !== 0) {
+                rateBuckets.push({ pkts: curBucket.pkts, bytes: curBucket.bytes, ts: curBucket.ts });
+                if (rateBuckets.length > RATE_BUCKETS) rateBuckets.shift();
+            }
+            curBucket.pkts = 0;
+            curBucket.bytes = 0;
+            curBucket.ts = sec;
+        }
+        curBucket.pkts++;
+        curBucket.bytes += pktBytes;
+
+        // Protocol counters
+        if (proto === 'tcp') protoCounts.tcp++;
+        else if (proto === 'udp') protoCounts.udp++;
+        else if (proto === 'dns') protoCounts.dns++;
+        else if (proto === 'icmp') protoCounts.icmp++;
+        else if (proto === 'arp') protoCounts.arp++;
+        else if (proto === 'http') protoCounts.http++;
+        else protoCounts.other++;
+
+        // Top talkers
+        if (srcIp) {
+            talkerCounts[srcIp] = (talkerCounts[srcIp] || 0) + 1;
+        }
+
+        // Bandwidth (directional)
+        const dstIsLocal = typeof Filters !== 'undefined' && Filters.isLocalAddr ? Filters.isLocalAddr(pkt.dstAddr) : false;
+        const srcIsLocal = typeof Filters !== 'undefined' && Filters.isLocalAddr ? Filters.isLocalAddr(pkt.srcAddr) : false;
+
+        if (curBwBucket.ts !== sec) {
+            if (curBwBucket.ts !== 0) {
+                bwBuckets.push({ inB: curBwBucket.inB, outB: curBwBucket.outB, ts: curBwBucket.ts });
+                if (bwBuckets.length > BW_BUCKETS) bwBuckets.shift();
+            }
+            curBwBucket.inB = 0;
+            curBwBucket.outB = 0;
+            curBwBucket.ts = sec;
+        }
+
+        if (dstIsLocal && !srcIsLocal) {
+            curBwBucket.inB += pktBytes;
+            bwTotalIn += pktBytes;
+        } else if (srcIsLocal && !dstIsLocal) {
+            curBwBucket.outB += pktBytes;
+            bwTotalOut += pktBytes;
+        }
     }
 
     function fireAlert(now, severity, type, title, detail, pktNumber, srcIp) {
@@ -210,6 +302,35 @@ const Security = (() => {
         alerts.push(alert);
         renderAlert(alert);
         updateBadge();
+
+        // Record into activeAttacks
+        const attackKey = type + ':' + srcIp;
+        activeAttacks.set(attackKey, { type, severity, title, srcIp, lastSeen: now });
+
+        // Trigger DDoS banner for flood-type attacks
+        if (type === 'syn_flood' || type === 'udp_flood') {
+            // Parse source->target from detail
+            const parts = detail.match(/^([^\s]+)\s*->\s*([^:]+)/);
+            const source = parts ? parts[1] : srcIp;
+            const target = parts ? parts[2] : '—';
+            const rateMatch = detail.match(/(\d+)\s+(SYN|UDP)\s+packets/i);
+            const rate = rateMatch ? parseInt(rateMatch[1], 10) : 0;
+
+            if (!ddosState || ddosState.type !== type) {
+                ddosState = {
+                    type: type === 'syn_flood' ? 'SYN Flood' : 'UDP Flood',
+                    source,
+                    target,
+                    startTime: now,
+                    rateBuckets: [],
+                };
+            }
+            ddosState.lastSeen = now;
+            ddosState.source = source;
+            ddosState.target = target;
+            ddosState.rateBuckets.push(rate);
+            if (ddosState.rateBuckets.length > DDOS_BARS) ddosState.rateBuckets.shift();
+        }
     }
 
     function renderAlert(alert) {
@@ -258,6 +379,309 @@ const Security = (() => {
         }
     }
 
+    // ==================== DASHBOARD RENDERING (1s interval) ====================
+
+    function refreshDashboard() {
+        const now = Date.now();
+
+        // Prune expired active attacks
+        for (const [key, atk] of activeAttacks) {
+            if (now - atk.lastSeen > ACTIVE_ATTACK_TTL) activeAttacks.delete(key);
+        }
+
+        renderThreatLevel();
+        renderTrafficRate();
+        renderProtocolBars();
+        renderTopTalkers();
+        renderActiveAttacks();
+        renderBandwidth();
+        renderDdosBanner(now);
+    }
+
+    function renderThreatLevel() {
+        const el = document.getElementById('sec-threat');
+        const detailEl = document.getElementById('sec-threat-detail');
+        if (!el) return;
+
+        // Score based on active attacks
+        const sevScores = { critical: 4, high: 3, medium: 2, low: 1 };
+        let maxScore = 0;
+        let attackNames = [];
+        for (const [, atk] of activeAttacks) {
+            const s = sevScores[atk.severity] || 0;
+            if (s > maxScore) maxScore = s;
+            attackNames.push(atk.title);
+        }
+
+        const levels = ['safe', 'low', 'medium', 'high', 'critical'];
+        const labels = ['SAFE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+        const level = levels[maxScore];
+
+        el.className = 'sec-threat-gauge threat-' + level;
+        el.querySelector('.threat-level-text').textContent = labels[maxScore];
+
+        if (detailEl) {
+            if (activeAttacks.size === 0) {
+                detailEl.textContent = 'No active threats';
+            } else {
+                const unique = [...new Set(attackNames)];
+                detailEl.textContent = unique.slice(0, 3).join(', ') + (unique.length > 3 ? '...' : '');
+            }
+        }
+    }
+
+    function renderTrafficRate() {
+        const ppsEl = document.getElementById('sec-pps');
+        const bpsEl = document.getElementById('sec-bps');
+        const sparkEl = document.getElementById('sec-rate-sparkline');
+        if (!ppsEl) return;
+
+        // Get last complete bucket
+        const lastBucket = rateBuckets.length > 0 ? rateBuckets[rateBuckets.length - 1] : { pkts: 0, bytes: 0 };
+
+        ppsEl.textContent = formatNum(lastBucket.pkts);
+        bpsEl.textContent = formatBytes(lastBucket.bytes) + '/s';
+
+        if (sparkEl) {
+            const data = rateBuckets.map(b => b.pkts);
+            sparkEl.innerHTML = renderSparkline(data, RATE_BUCKETS, 'sec-sparkline-line', 'sec-sparkline-fill');
+        }
+    }
+
+    function renderProtocolBars() {
+        const el = document.getElementById('sec-proto-bars');
+        if (!el) return;
+
+        const total = protoCounts.tcp + protoCounts.udp + protoCounts.dns +
+                      protoCounts.icmp + protoCounts.arp + protoCounts.http + protoCounts.other;
+
+        if (total === 0) {
+            el.innerHTML = '<div class="sec-card-empty">No traffic yet</div>';
+            return;
+        }
+
+        const protos = [
+            { key: 'tcp', label: 'TCP' },
+            { key: 'udp', label: 'UDP' },
+            { key: 'dns', label: 'DNS' },
+            { key: 'icmp', label: 'ICMP' },
+            { key: 'arp', label: 'ARP' },
+            { key: 'http', label: 'HTTP' },
+            { key: 'other', label: 'Other' },
+        ];
+
+        let html = '';
+        for (const p of protos) {
+            const count = protoCounts[p.key];
+            if (count === 0) continue;
+            const pct = (count / total * 100);
+            html += `<div class="sec-proto-row">` +
+                `<span class="sec-proto-label">${p.label}</span>` +
+                `<div class="sec-proto-track"><div class="sec-proto-fill sec-proto-fill-${p.key}" style="width:${pct.toFixed(1)}%"></div></div>` +
+                `<span class="sec-proto-pct">${pct < 1 ? '<1' : Math.round(pct)}%</span>` +
+                `</div>`;
+        }
+        el.innerHTML = html;
+    }
+
+    function renderTopTalkers() {
+        const el = document.getElementById('sec-top-talkers');
+        if (!el) return;
+
+        const entries = Object.entries(talkerCounts);
+        if (entries.length === 0) {
+            el.innerHTML = '<div class="sec-card-empty">No traffic yet</div>';
+            return;
+        }
+
+        entries.sort((a, b) => b[1] - a[1]);
+        const top5 = entries.slice(0, 5);
+        const maxCount = top5[0][1];
+
+        let html = '';
+        for (const [ip, count] of top5) {
+            const pct = (count / maxCount * 100).toFixed(1);
+            html += `<div class="sec-talker-row">` +
+                `<span class="sec-talker-ip" title="${esc(ip)}">${esc(ip)}</span>` +
+                `<div class="sec-talker-track"><div class="sec-talker-fill" style="width:${pct}%"></div></div>` +
+                `<span class="sec-talker-count">${formatNum(count)}</span>` +
+                `</div>`;
+        }
+        el.innerHTML = html;
+    }
+
+    function renderActiveAttacks() {
+        const countEl2 = document.getElementById('sec-attack-count');
+        const tagsEl = document.getElementById('sec-attack-tags');
+        if (!countEl2) return;
+
+        countEl2.textContent = activeAttacks.size;
+
+        if (tagsEl) {
+            if (activeAttacks.size === 0) {
+                tagsEl.innerHTML = '<div class="sec-card-empty">None</div>';
+                return;
+            }
+            // Collect unique type+severity
+            const seen = new Map();
+            for (const [, atk] of activeAttacks) {
+                if (!seen.has(atk.type)) {
+                    seen.set(atk.type, atk);
+                }
+            }
+            let html = '';
+            for (const [, atk] of seen) {
+                html += `<span class="sec-attack-tag sec-attack-tag-${atk.severity}">${esc(atk.title)}</span>`;
+            }
+            tagsEl.innerHTML = html;
+        }
+    }
+
+    function renderBandwidth() {
+        const inEl = document.getElementById('sec-bw-in');
+        const outEl = document.getElementById('sec-bw-out');
+        const totalInEl = document.getElementById('sec-bw-total-in');
+        const totalOutEl = document.getElementById('sec-bw-total-out');
+        const sparkEl = document.getElementById('sec-bw-sparkline');
+        if (!inEl) return;
+
+        const lastBw = bwBuckets.length > 0 ? bwBuckets[bwBuckets.length - 1] : { inB: 0, outB: 0 };
+
+        inEl.textContent = formatBytes(lastBw.inB) + '/s';
+        outEl.textContent = formatBytes(lastBw.outB) + '/s';
+        if (totalInEl) totalInEl.textContent = formatBytes(bwTotalIn);
+        if (totalOutEl) totalOutEl.textContent = formatBytes(bwTotalOut);
+
+        if (sparkEl) {
+            const dataIn = bwBuckets.map(b => b.inB);
+            const dataOut = bwBuckets.map(b => b.outB);
+            // Overlay two sparklines: in (blue) + out (green)
+            const maxLen = BW_BUCKETS;
+            const allMax = Math.max(
+                dataIn.reduce((a, b) => Math.max(a, b), 0),
+                dataOut.reduce((a, b) => Math.max(a, b), 0),
+                1
+            );
+            const h = 32;
+            const w = 250;
+            const lineIn = buildSparkPoints(dataIn, maxLen, w, h, allMax);
+            const lineOut = buildSparkPoints(dataOut, maxLen, w, h, allMax);
+
+            sparkEl.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">` +
+                `<polygon points="${lineIn.fill}" class="sec-sparkline-fill"/>` +
+                `<polyline points="${lineIn.line}" class="sec-sparkline-line"/>` +
+                `<polygon points="${lineOut.fill}" class="sec-sparkline-fill-green"/>` +
+                `<polyline points="${lineOut.line}" class="sec-sparkline-line-green"/>` +
+                `</svg>`;
+        }
+    }
+
+    function renderDdosBanner(now) {
+        const bannerEl = document.getElementById('ddos-banner');
+        if (!bannerEl) return;
+
+        if (!ddosState || now - ddosState.lastSeen > DDOS_TIMEOUT) {
+            bannerEl.style.display = 'none';
+            if (ddosState && now - ddosState.lastSeen > DDOS_TIMEOUT) {
+                ddosState = null;
+            }
+            return;
+        }
+
+        bannerEl.style.display = 'block';
+
+        const typeEl = document.getElementById('ddos-type');
+        const srcEl = document.getElementById('ddos-source');
+        const tgtEl = document.getElementById('ddos-target');
+        const rateEl = document.getElementById('ddos-rate');
+        const durEl = document.getElementById('ddos-duration');
+        const chartEl = document.getElementById('ddos-chart');
+
+        if (typeEl) typeEl.textContent = ddosState.type;
+        if (srcEl) srcEl.textContent = ddosState.source;
+        if (tgtEl) tgtEl.textContent = ddosState.target;
+
+        // Rate = last bucket value
+        const lastRate = ddosState.rateBuckets.length > 0 ? ddosState.rateBuckets[ddosState.rateBuckets.length - 1] : 0;
+        if (rateEl) rateEl.textContent = formatNum(lastRate) + ' pkt/s';
+
+        // Duration
+        const durSec = Math.floor((now - ddosState.startTime) / 1000);
+        if (durEl) {
+            if (durSec < 60) durEl.textContent = durSec + 's';
+            else durEl.textContent = Math.floor(durSec / 60) + 'm ' + (durSec % 60) + 's';
+        }
+
+        // Bar chart
+        if (chartEl) {
+            chartEl.innerHTML = renderDdosBarChart(ddosState.rateBuckets);
+        }
+    }
+
+    // ==================== HELPERS ====================
+
+    function renderSparkline(data, maxLen, lineClass, fillClass) {
+        const h = 32;
+        const w = 250;
+        const pts = buildSparkPoints(data, maxLen, w, h);
+
+        return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">` +
+            `<polygon points="${pts.fill}" class="${fillClass}"/>` +
+            `<polyline points="${pts.line}" class="${lineClass}"/>` +
+            `</svg>`;
+    }
+
+    function buildSparkPoints(data, maxLen, w, h, forceMax) {
+        const len = Math.min(data.length, maxLen);
+        const max = forceMax || Math.max(...data, 1);
+        const step = len > 1 ? w / (maxLen - 1) : w;
+        const offset = maxLen - len;
+
+        let linePoints = '';
+        let fillPoints = `${offset * step},${h} `;
+
+        for (let i = 0; i < len; i++) {
+            const x = ((offset + i) * step).toFixed(1);
+            const y = (h - (data[i] / max) * (h - 2) - 1).toFixed(1);
+            linePoints += `${x},${y} `;
+            fillPoints += `${x},${y} `;
+        }
+
+        if (len > 0) {
+            fillPoints += `${((offset + len - 1) * step).toFixed(1)},${h}`;
+        } else {
+            fillPoints += `0,${h}`;
+        }
+
+        return { line: linePoints.trim(), fill: fillPoints.trim() };
+    }
+
+    function renderDdosBarChart(buckets) {
+        if (!buckets || buckets.length === 0) return '';
+        const max = Math.max(...buckets, 1);
+        let html = '';
+        for (let i = 0; i < DDOS_BARS; i++) {
+            const val = i < buckets.length ? buckets[buckets.length - DDOS_BARS + i] : 0;
+            const actual = val !== undefined && val > 0 ? val : 0;
+            const pct = (actual / max * 100).toFixed(1);
+            html += `<div class="ddos-bar" style="height:${Math.max(pct, 3)}%"></div>`;
+        }
+        return html;
+    }
+
+    function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+        return (bytes / 1073741824).toFixed(2) + ' GB';
+    }
+
+    function formatNum(n) {
+        if (n < 1000) return String(n);
+        if (n < 1000000) return (n / 1000).toFixed(1) + 'K';
+        return (n / 1000000).toFixed(1) + 'M';
+    }
+
     function clear() {
         alerts.length = 0;
         alertCount = 0;
@@ -270,9 +694,24 @@ const Security = (() => {
         Object.keys(firedAlerts).forEach(k => delete firedAlerts[k]);
         if (container) container.innerHTML = '<div class="empty-state">No alerts detected</div>';
         updateBadge();
+
+        // Reset dashboard state
+        rateBuckets = [];
+        curBucket.pkts = 0; curBucket.bytes = 0; curBucket.ts = 0;
+        protoCounts.tcp = 0; protoCounts.udp = 0; protoCounts.dns = 0;
+        protoCounts.icmp = 0; protoCounts.arp = 0; protoCounts.http = 0; protoCounts.other = 0;
+        Object.keys(talkerCounts).forEach(k => delete talkerCounts[k]);
+        bwInBytes = 0; bwOutBytes = 0; bwTotalIn = 0; bwTotalOut = 0;
+        bwBuckets = [];
+        curBwBucket.inB = 0; curBwBucket.outB = 0; curBwBucket.ts = 0;
+        activeAttacks.clear();
+        ddosState = null;
+
+        // Re-render dashboard immediately
+        refreshDashboard();
     }
 
-    // --- Helpers ---
+    // --- Original Helpers ---
 
     function stripPort(addr) {
         if (!addr) return '';

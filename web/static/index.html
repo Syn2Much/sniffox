@@ -193,15 +193,87 @@
         <!-- ==================== SECURITY PAGE ==================== -->
         <div class="page" data-page="security">
             <div id="security-toolbar">
-                <span class="page-title">Security Alerts</span>
+                <span class="page-title">Security Dashboard</span>
                 <span id="security-alert-count" class="security-count"></span>
                 <div class="security-toolbar-right">
                     <button id="btn-alerts-clear" class="toolbar-btn" title="Clear all alerts">Clear All</button>
                 </div>
             </div>
             <div id="security-body">
-                <div id="alert-list">
-                    <div class="empty-state">No alerts detected</div>
+                <!-- DDoS Attack Banner (hidden by default) -->
+                <div id="ddos-banner" class="ddos-banner" style="display:none">
+                    <div class="ddos-banner-header">
+                        <span class="ddos-banner-icon">&#9888;</span>
+                        <span class="ddos-banner-title">DDoS Attack Detected</span>
+                        <span id="ddos-type" class="ddos-type-tag"></span>
+                    </div>
+                    <div class="ddos-banner-details">
+                        <div class="ddos-detail"><span class="ddos-label">Source</span><span id="ddos-source" class="ddos-value">—</span></div>
+                        <div class="ddos-detail"><span class="ddos-label">Target</span><span id="ddos-target" class="ddos-value">—</span></div>
+                        <div class="ddos-detail"><span class="ddos-label">Rate</span><span id="ddos-rate" class="ddos-value">—</span></div>
+                        <div class="ddos-detail"><span class="ddos-label">Duration</span><span id="ddos-duration" class="ddos-value">—</span></div>
+                    </div>
+                    <div id="ddos-chart" class="ddos-chart"></div>
+                </div>
+
+                <!-- Dashboard Card Grid -->
+                <div class="sec-dashboard">
+                    <!-- Threat Level -->
+                    <div class="sec-card">
+                        <div class="sec-card-title">Threat Level</div>
+                        <div id="sec-threat" class="sec-threat-gauge threat-safe">
+                            <span class="threat-level-text">SAFE</span>
+                        </div>
+                        <div id="sec-threat-detail" class="sec-card-sub">No active threats</div>
+                    </div>
+                    <!-- Traffic Rate -->
+                    <div class="sec-card">
+                        <div class="sec-card-title">Traffic Rate</div>
+                        <div class="sec-card-metrics">
+                            <div class="sec-metric"><span id="sec-pps" class="sec-metric-val">0</span><span class="sec-metric-unit">pkt/s</span></div>
+                            <div class="sec-metric"><span id="sec-bps" class="sec-metric-val">0</span><span class="sec-metric-unit">B/s</span></div>
+                        </div>
+                        <div id="sec-rate-sparkline" class="sec-sparkline"></div>
+                    </div>
+                    <!-- Protocol Distribution -->
+                    <div class="sec-card">
+                        <div class="sec-card-title">Protocol Distribution</div>
+                        <div id="sec-proto-bars" class="sec-proto-bars"></div>
+                    </div>
+                    <!-- Top Talkers -->
+                    <div class="sec-card">
+                        <div class="sec-card-title">Top Talkers</div>
+                        <div id="sec-top-talkers" class="sec-top-talkers"></div>
+                    </div>
+                    <!-- Active Attacks -->
+                    <div class="sec-card">
+                        <div class="sec-card-title">Active Attacks</div>
+                        <div class="sec-card-metrics">
+                            <div class="sec-metric"><span id="sec-attack-count" class="sec-metric-val">0</span><span class="sec-metric-unit">active</span></div>
+                        </div>
+                        <div id="sec-attack-tags" class="sec-attack-tags"></div>
+                    </div>
+                    <!-- Bandwidth -->
+                    <div class="sec-card">
+                        <div class="sec-card-title">Bandwidth</div>
+                        <div class="sec-card-metrics">
+                            <div class="sec-metric"><span class="sec-metric-label">In</span><span id="sec-bw-in" class="sec-metric-val">0 B/s</span></div>
+                            <div class="sec-metric"><span class="sec-metric-label">Out</span><span id="sec-bw-out" class="sec-metric-val">0 B/s</span></div>
+                        </div>
+                        <div class="sec-card-metrics sec-bw-totals">
+                            <div class="sec-metric"><span class="sec-metric-label">Total In</span><span id="sec-bw-total-in" class="sec-metric-val-sm">0 B</span></div>
+                            <div class="sec-metric"><span class="sec-metric-label">Total Out</span><span id="sec-bw-total-out" class="sec-metric-val-sm">0 B</span></div>
+                        </div>
+                        <div id="sec-bw-sparkline" class="sec-sparkline"></div>
+                    </div>
+                </div>
+
+                <!-- Alert List (existing, unchanged) -->
+                <div class="sec-alerts-section">
+                    <div class="sec-alerts-header">Alert Log</div>
+                    <div id="alert-list">
+                        <div class="empty-state">No alerts detected</div>
+                    </div>
                 </div>
             </div>
         </div>

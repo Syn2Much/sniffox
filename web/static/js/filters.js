@@ -229,5 +229,5 @@ const Filters = (() => {
         return i > 0 ? addr.substring(0, i) : addr;
     }
 
-    return { compile, setLocalAddresses };
+    return { compile, setLocalAddresses, isLocalAddr };
 })();

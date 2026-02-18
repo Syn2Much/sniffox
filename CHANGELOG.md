@@ -2,6 +2,20 @@
 
 All notable changes to TCPDumper are documented here.
 
+## [0.5.0] - 2026-02-18
+
+### Added
+- **Security Dashboard** with 6 real-time metric cards above the alert list
+  - Threat Level gauge (SAFE/LOW/MEDIUM/HIGH/CRITICAL) color-coded by active alert severity
+  - Traffic Rate card with packets/s, bytes/s, and 60-second SVG sparkline
+  - Protocol Distribution horizontal bar chart (TCP/UDP/DNS/ICMP/ARP/HTTP/Other)
+  - Top Talkers showing top 5 source IPs by packet count with relative volume bars
+  - Active Attacks count with severity-colored tags for current attack types
+  - Bandwidth card with inbound/outbound rates, totals, and dual sparkline
+- **DDoS Attack Banner** that activates during SYN flood / UDP flood events with pulsing animation, attack details, and 30-bar intensity chart
+- Dashboard data collected per-packet in fast path (zero DOM writes), rendered once per second via setInterval
+- Exported `isLocalAddr` from Filters module for directional bandwidth tracking
+
 ## [0.4.0] - 2026-02-18
 
 ### Fixed
