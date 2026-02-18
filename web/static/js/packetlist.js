@@ -24,6 +24,9 @@ const PacketList = (() => {
     let pendingPackets = [];
     let rafId = null;
 
+    // Context menu
+    let ctxMenu = null;
+
     function init() {
         pane = document.getElementById('packet-list-pane');
         tbody = document.getElementById('packet-tbody');
@@ -36,6 +39,11 @@ const PacketList = (() => {
 
         pane.addEventListener('scroll', onScroll);
         window.addEventListener('resize', scheduleRender);
+
+        // Context menu
+        createContextMenu();
+        pane.addEventListener('contextmenu', onContextMenu);
+        document.addEventListener('click', hideContextMenu);
 
         scheduleRender();
     }
@@ -193,6 +201,105 @@ const PacketList = (() => {
 
     function displayedCount() {
         return displayIndices.length;
+    }
+
+    // --- Context Menu ---
+
+    function createContextMenu() {
+        ctxMenu = document.createElement('div');
+        ctxMenu.className = 'pkt-context-menu';
+        ctxMenu.style.display = 'none';
+        ctxMenu.innerHTML =
+            '<div class="pkt-ctx-item" data-action="follow-stream">Follow TCP Stream</div>' +
+            '<div class="pkt-ctx-item" data-action="filter-flow">Filter by Flow</div>' +
+            '<div class="pkt-ctx-sep"></div>' +
+            '<div class="pkt-ctx-item" data-action="filter-src">Filter by Source IP</div>' +
+            '<div class="pkt-ctx-item" data-action="filter-dst">Filter by Dest IP</div>';
+        document.body.appendChild(ctxMenu);
+
+        ctxMenu.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            if (!action) return;
+            hideContextMenu();
+            handleContextAction(action);
+        });
+    }
+
+    let ctxPacket = null;
+
+    function onContextMenu(e) {
+        // Find the row
+        const tr = e.target.closest('tr[data-index]');
+        if (!tr) return;
+        e.preventDefault();
+
+        const idx = parseInt(tr.dataset.index, 10);
+        ctxPacket = packets[idx];
+        if (!ctxPacket) return;
+
+        // Position menu
+        ctxMenu.style.display = 'block';
+        ctxMenu.style.left = e.clientX + 'px';
+        ctxMenu.style.top = e.clientY + 'px';
+
+        // Enable/disable stream option
+        const streamItem = ctxMenu.querySelector('[data-action="follow-stream"]');
+        if (streamItem) {
+            streamItem.style.opacity = ctxPacket.streamId ? '1' : '0.4';
+            streamItem.style.pointerEvents = ctxPacket.streamId ? 'auto' : 'none';
+        }
+
+        // Enable/disable flow option
+        const flowItem = ctxMenu.querySelector('[data-action="filter-flow"]');
+        if (flowItem) {
+            flowItem.style.opacity = ctxPacket.flowId ? '1' : '0.4';
+            flowItem.style.pointerEvents = ctxPacket.flowId ? 'auto' : 'none';
+        }
+    }
+
+    function hideContextMenu() {
+        if (ctxMenu) ctxMenu.style.display = 'none';
+    }
+
+    function handleContextAction(action) {
+        if (!ctxPacket) return;
+        const filterInput = document.getElementById('display-filter');
+
+        switch (action) {
+            case 'follow-stream':
+                if (ctxPacket.streamId && typeof Streams !== 'undefined') {
+                    Streams.open(ctxPacket.streamId);
+                }
+                break;
+            case 'filter-flow':
+                if (ctxPacket.flowId && filterInput) {
+                    filterInput.value = 'flow==' + ctxPacket.flowId;
+                    filterInput.dispatchEvent(new Event('input'));
+                }
+                break;
+            case 'filter-src': {
+                const ip = stripPort(ctxPacket.srcAddr);
+                if (ip && filterInput) {
+                    filterInput.value = 'ip.src==' + ip;
+                    filterInput.dispatchEvent(new Event('input'));
+                }
+                break;
+            }
+            case 'filter-dst': {
+                const ip = stripPort(ctxPacket.dstAddr);
+                if (ip && filterInput) {
+                    filterInput.value = 'ip.dst==' + ip;
+                    filterInput.dispatchEvent(new Event('input'));
+                }
+                break;
+            }
+        }
+    }
+
+    function stripPort(addr) {
+        if (!addr) return '';
+        const i = addr.lastIndexOf(':');
+        return i > 0 ? addr.substring(0, i) : addr;
     }
 
     function esc(s) {

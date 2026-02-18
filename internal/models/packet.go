@@ -12,6 +12,8 @@ type PacketInfo struct {
 	Layers    []LayerDetail `json:"layers"`
 	HexDump   string        `json:"hexDump"`
 	RawHex    string        `json:"rawHex"`
+	FlowID    uint64        `json:"flowId,omitempty"`
+	StreamID  uint64        `json:"streamId,omitempty"`
 }
 
 // LayerDetail represents one protocol layer in the packet.

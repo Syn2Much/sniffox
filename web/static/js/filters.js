@@ -7,10 +7,14 @@ const Filters = (() => {
     //
     // Supported syntax:
     //   tcp, udp, dns, arp, icmp, http, ipv6     — protocol match
+    //   tls, dhcp, ntp, icmpv6, vlan             — expanded protocol match
     //   ip.src==ADDR or ip.src=ADDR               — source address match
     //   ip.dst==ADDR or ip.dst=ADDR               — destination address match
     //   ip==ADDR or ip=ADDR                       — match src OR dst (strip port)
     //   port==N or port=N                         — info/addr contains :N
+    //   tls.sni==hostname                         — TLS SNI filter
+    //   flow==N                                   — match by flow ID
+    //   stream==N                                 — match by stream ID
     //   inbound / incoming                        — dst is a local address
     //   outbound / outgoing                       — src is a local address
     //   local                                     — both src and dst are local
@@ -130,8 +134,11 @@ const Filters = (() => {
         const token = tokenMatch[0].trim();
         const end = newPos + tokenMatch[0].length;
 
-        // Protocol keywords
-        const protocols = ['tcp', 'udp', 'dns', 'arp', 'icmp', 'http', 'ipv6', 'ipv4', 'ethernet'];
+        // Protocol keywords (expanded)
+        const protocols = [
+            'tcp', 'udp', 'dns', 'arp', 'icmp', 'http', 'ipv6', 'ipv4', 'ethernet',
+            'tls', 'dhcp', 'ntp', 'icmpv6', 'vlan'
+        ];
         const lowerToken = token.toLowerCase();
         if (protocols.includes(lowerToken)) {
             return {
@@ -174,6 +181,36 @@ const Filters = (() => {
         if (lowerToken === 'unicast') {
             return {
                 func: (pkt) => !isBroadcast(pkt.dstAddr),
+                end
+            };
+        }
+
+        // flow==N — filter by flow ID
+        const flowMatch = token.match(/^flow\s*={1,2}\s*(\d+)$/i);
+        if (flowMatch) {
+            const flowId = parseInt(flowMatch[1], 10);
+            return {
+                func: (pkt) => pkt.flowId === flowId,
+                end
+            };
+        }
+
+        // stream==N — filter by stream ID
+        const streamMatch = token.match(/^stream\s*={1,2}\s*(\d+)$/i);
+        if (streamMatch) {
+            const streamId = parseInt(streamMatch[1], 10);
+            return {
+                func: (pkt) => pkt.streamId === streamId,
+                end
+            };
+        }
+
+        // tls.sni==hostname — filter by TLS SNI
+        const sniMatch = token.match(/^tls\.sni\s*={1,2}\s*(.+)$/i);
+        if (sniMatch) {
+            const hostname = sniMatch[1].trim().toLowerCase();
+            return {
+                func: (pkt) => pkt.info && pkt.info.toLowerCase().includes(hostname) && pkt.protocol && pkt.protocol.toLowerCase() === 'tls',
                 end
             };
         }

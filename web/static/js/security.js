@@ -41,7 +41,7 @@ const Security = (() => {
     let curBucket = { pkts: 0, bytes: 0, ts: 0 };
 
     // Protocol distribution — lifetime counters
-    const protoCounts = { tcp: 0, udp: 0, dns: 0, icmp: 0, arp: 0, http: 0, other: 0 };
+    const protoCounts = { tcp: 0, udp: 0, dns: 0, icmp: 0, arp: 0, http: 0, tls: 0, dhcp: 0, ntp: 0, other: 0 };
 
     // Top talkers — IP -> packet count
     const talkerCounts = {};
@@ -250,9 +250,12 @@ const Security = (() => {
         if (proto === 'tcp') protoCounts.tcp++;
         else if (proto === 'udp') protoCounts.udp++;
         else if (proto === 'dns') protoCounts.dns++;
-        else if (proto === 'icmp') protoCounts.icmp++;
+        else if (proto === 'icmp' || proto === 'icmpv6') protoCounts.icmp++;
         else if (proto === 'arp') protoCounts.arp++;
         else if (proto === 'http') protoCounts.http++;
+        else if (proto === 'tls') protoCounts.tls++;
+        else if (proto === 'dhcp') protoCounts.dhcp++;
+        else if (proto === 'ntp') protoCounts.ntp++;
         else protoCounts.other++;
 
         // Top talkers
@@ -453,7 +456,8 @@ const Security = (() => {
         if (!el) return;
 
         const total = protoCounts.tcp + protoCounts.udp + protoCounts.dns +
-                      protoCounts.icmp + protoCounts.arp + protoCounts.http + protoCounts.other;
+                      protoCounts.icmp + protoCounts.arp + protoCounts.http +
+                      protoCounts.tls + protoCounts.dhcp + protoCounts.ntp + protoCounts.other;
 
         if (total === 0) {
             el.innerHTML = '<div class="sec-card-empty">No traffic yet</div>';
@@ -467,6 +471,9 @@ const Security = (() => {
             { key: 'icmp', label: 'ICMP' },
             { key: 'arp', label: 'ARP' },
             { key: 'http', label: 'HTTP' },
+            { key: 'tls', label: 'TLS' },
+            { key: 'dhcp', label: 'DHCP' },
+            { key: 'ntp', label: 'NTP' },
             { key: 'other', label: 'Other' },
         ];
 
@@ -699,7 +706,8 @@ const Security = (() => {
         rateBuckets = [];
         curBucket.pkts = 0; curBucket.bytes = 0; curBucket.ts = 0;
         protoCounts.tcp = 0; protoCounts.udp = 0; protoCounts.dns = 0;
-        protoCounts.icmp = 0; protoCounts.arp = 0; protoCounts.http = 0; protoCounts.other = 0;
+        protoCounts.icmp = 0; protoCounts.arp = 0; protoCounts.http = 0;
+        protoCounts.tls = 0; protoCounts.dhcp = 0; protoCounts.ntp = 0; protoCounts.other = 0;
         Object.keys(talkerCounts).forEach(k => delete talkerCounts[k]);
         bwInBytes = 0; bwOutBytes = 0; bwTotalIn = 0; bwTotalOut = 0;
         bwBuckets = [];

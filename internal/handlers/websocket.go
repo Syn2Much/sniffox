@@ -143,6 +143,45 @@ func (c *WSClient) handleCommand(msg models.WSMessage) {
 	case "stop_capture":
 		c.eng.StopCapture()
 
+	case "get_flows":
+		flows := c.eng.GetFlows()
+		infos := make([]models.FlowInfo, 0, len(flows))
+		for _, f := range flows {
+			infos = append(infos, models.FlowInfo{
+				ID:          f.ID,
+				SrcIP:       f.SrcIP,
+				DstIP:       f.DstIP,
+				SrcPort:     f.SrcPort,
+				DstPort:     f.DstPort,
+				Protocol:    f.Protocol,
+				PacketCount: f.PacketCount,
+				ByteCount:   f.ByteCount,
+				FirstSeen:   f.FirstSeen,
+				LastSeen:    f.LastSeen,
+				TCPState:    string(f.TCPState),
+				FwdPackets:  f.FwdPackets,
+				FwdBytes:    f.FwdBytes,
+				RevPackets:  f.RevPackets,
+				RevBytes:    f.RevBytes,
+			})
+		}
+		payload, _ := json.Marshal(infos)
+		c.SendMessage(models.WSMessage{Type: "flows", Payload: payload})
+
+	case "get_stream_data":
+		var req models.GetStreamDataRequest
+		if err := json.Unmarshal(msg.Payload, &req); err != nil {
+			c.sendError("invalid get_stream_data payload")
+			return
+		}
+		data := c.eng.GetStreamData(req.StreamID)
+		if data == nil {
+			c.sendError("stream not found")
+			return
+		}
+		payload, _ := json.Marshal(data)
+		c.SendMessage(models.WSMessage{Type: "stream_data", Payload: payload})
+
 	default:
 		c.sendError("unknown command: " + msg.Type)
 	}

@@ -8,10 +8,13 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 
 	"sniffox/internal/capture"
+	"sniffox/internal/flow"
 	"sniffox/internal/models"
 	"sniffox/internal/parser"
+	"sniffox/internal/stream"
 )
 
 // Client represents a connected WebSocket client that receives packets.
@@ -28,13 +31,18 @@ type Engine struct {
 	capturing   bool
 	pktCount    int
 	startTime   time.Time
+
+	flowTracker *flow.Tracker
+	streamMgr   *stream.Manager
 }
 
 // New creates a new Engine.
 func New() *Engine {
-	return &Engine{
-		clients: make(map[Client]bool),
+	e := &Engine{
+		clients:     make(map[Client]bool),
+		flowTracker: flow.NewTracker(),
 	}
+	return e
 }
 
 // RegisterClient adds a client to receive packet broadcasts.
@@ -82,18 +90,25 @@ func (e *Engine) StartCapture(req models.StartCaptureRequest) error {
 		return err
 	}
 
+	// Create and start stream manager
+	smgr := stream.NewManager(e)
+	smgr.Start()
+
 	e.mu.Lock()
 	e.liveCapture = lc
 	e.capturing = true
 	e.pktCount = 0
 	e.startTime = time.Now()
 	e.stopCh = make(chan struct{})
+	e.streamMgr = smgr
+	e.flowTracker.Reset()
 	e.mu.Unlock()
 
 	payload, _ := json.Marshal(map[string]string{"interfaceName": req.Interface})
 	e.broadcast(models.WSMessage{Type: "capture_started", Payload: payload})
 
 	go e.captureLoop(lc.Packets())
+	go e.startFlowBroadcaster()
 
 	return nil
 }
@@ -108,6 +123,7 @@ func (e *Engine) StopCapture() {
 	e.capturing = false
 	stopCh := e.stopCh
 	lc := e.liveCapture
+	smgr := e.streamMgr
 	e.mu.Unlock()
 
 	// Broadcast immediately so clients get instant feedback
@@ -117,6 +133,10 @@ func (e *Engine) StopCapture() {
 	// pending pcap read returns, but the client already knows we stopped.
 	close(stopCh)
 	lc.Close()
+
+	if smgr != nil {
+		smgr.Stop()
+	}
 }
 
 // LoadPcapFile reads a pcap file and streams packets to all clients with pacing.
@@ -130,6 +150,7 @@ func (e *Engine) LoadPcapFile(path string) error {
 	e.mu.Lock()
 	e.pktCount = 0
 	e.startTime = time.Time{}
+	e.flowTracker.Reset()
 	e.mu.Unlock()
 
 	source := reader.Packets()
@@ -146,6 +167,14 @@ func (e *Engine) LoadPcapFile(path string) error {
 		e.mu.Unlock()
 
 		info := parser.Parse(pkt, num, firstTS)
+
+		// Flow tracking for pcap files too
+		tuple := parser.ExtractFlowTuple(pkt)
+		if tuple.Valid {
+			flowID, _ := e.flowTracker.Track(tuple.SrcIP, tuple.DstIP, tuple.SrcPort, tuple.DstPort, tuple.Protocol, info.Length, tuple.Flags)
+			info.FlowID = flowID
+		}
+
 		payload, _ := json.Marshal(info)
 		e.broadcast(models.WSMessage{Type: "packet", Payload: payload})
 
@@ -158,6 +187,33 @@ func (e *Engine) LoadPcapFile(path string) error {
 	}
 
 	return nil
+}
+
+// GetFlows returns the current flow table.
+func (e *Engine) GetFlows() []*flow.Flow {
+	return e.flowTracker.GetFlows()
+}
+
+// GetStreamData returns reassembled stream data by ID.
+func (e *Engine) GetStreamData(id uint64) *stream.StreamDataResponse {
+	e.mu.Lock()
+	smgr := e.streamMgr
+	e.mu.Unlock()
+
+	if smgr == nil {
+		return nil
+	}
+	return smgr.GetStreamData(id)
+}
+
+// BroadcastStreamEvent implements stream.Broadcaster.
+func (e *Engine) BroadcastStreamEvent(eventType string, payload json.RawMessage) {
+	evt := models.StreamEvent{
+		EventType: eventType,
+		Data:      payload,
+	}
+	data, _ := json.Marshal(evt)
+	e.broadcast(models.WSMessage{Type: "stream_event", Payload: data})
 }
 
 func (e *Engine) captureLoop(source *gopacket.PacketSource) {
@@ -183,11 +239,76 @@ func (e *Engine) captureLoop(source *gopacket.PacketSource) {
 		e.pktCount++
 		num := e.pktCount
 		startTime := e.startTime
+		smgr := e.streamMgr
 		e.mu.Unlock()
 
 		info := parser.Parse(pkt, num, startTime)
+
+		// Flow tracking
+		tuple := parser.ExtractFlowTuple(pkt)
+		if tuple.Valid {
+			flowID, _ := e.flowTracker.Track(tuple.SrcIP, tuple.DstIP, tuple.SrcPort, tuple.DstPort, tuple.Protocol, info.Length, tuple.Flags)
+			info.FlowID = flowID
+		}
+
+		// Stream reassembly — feed TCP packets
+		if tcpLayer := pkt.Layer(layers.LayerTypeTCP); tcpLayer != nil && smgr != nil {
+			smgr.Feed(pkt)
+
+			// Look up stream ID
+			if pkt.NetworkLayer() != nil {
+				streamID := smgr.GetStreamID(pkt.NetworkLayer().NetworkFlow(), tcpLayer.(*layers.TCP).TransportFlow())
+				if streamID > 0 {
+					info.StreamID = streamID
+				}
+			}
+		}
+
 		payload, _ := json.Marshal(info)
 		e.broadcast(models.WSMessage{Type: "packet", Payload: payload})
+	}
+}
+
+// startFlowBroadcaster ticks every 1s and broadcasts the flow table.
+func (e *Engine) startFlowBroadcaster() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			flows := e.flowTracker.GetFlows()
+			if len(flows) == 0 {
+				continue
+			}
+
+			// Convert to FlowInfo
+			infos := make([]models.FlowInfo, 0, len(flows))
+			for _, f := range flows {
+				infos = append(infos, models.FlowInfo{
+					ID:          f.ID,
+					SrcIP:       f.SrcIP,
+					DstIP:       f.DstIP,
+					SrcPort:     f.SrcPort,
+					DstPort:     f.DstPort,
+					Protocol:    f.Protocol,
+					PacketCount: f.PacketCount,
+					ByteCount:   f.ByteCount,
+					FirstSeen:   f.FirstSeen,
+					LastSeen:    f.LastSeen,
+					TCPState:    string(f.TCPState),
+					FwdPackets:  f.FwdPackets,
+					FwdBytes:    f.FwdBytes,
+					RevPackets:  f.RevPackets,
+					RevBytes:    f.RevBytes,
+				})
+			}
+
+			payload, _ := json.Marshal(infos)
+			e.broadcast(models.WSMessage{Type: "flow_update", Payload: payload})
+		}
 	}
 }
 

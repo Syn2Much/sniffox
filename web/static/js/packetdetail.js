@@ -15,14 +15,29 @@ const PacketDetail = (() => {
         }
         container.innerHTML = '';
 
-        // Analyze button bar
+        // Action button bar
         const bar = document.createElement('div');
         bar.className = 'detail-action-bar';
-        const btn = document.createElement('button');
-        btn.className = 'detail-analyze-btn';
-        btn.textContent = 'Deep Analysis';
-        btn.addEventListener('click', () => PacketModal.open(pkt));
-        bar.appendChild(btn);
+
+        const analyzeBtn = document.createElement('button');
+        analyzeBtn.className = 'detail-analyze-btn';
+        analyzeBtn.textContent = 'Deep Analysis';
+        analyzeBtn.addEventListener('click', () => PacketModal.open(pkt));
+        bar.appendChild(analyzeBtn);
+
+        // Follow Stream button — shown when packet has a stream ID
+        if (pkt.streamId) {
+            const streamBtn = document.createElement('button');
+            streamBtn.className = 'detail-stream-btn';
+            streamBtn.textContent = 'Follow Stream';
+            streamBtn.addEventListener('click', () => {
+                if (typeof Streams !== 'undefined') {
+                    Streams.open(pkt.streamId);
+                }
+            });
+            bar.appendChild(streamBtn);
+        }
+
         container.appendChild(bar);
 
         pkt.layers.forEach(layer => {

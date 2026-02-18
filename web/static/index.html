@@ -64,6 +64,10 @@
                         <option value="arp">ARP</option>
                         <option value="icmp">ICMP</option>
                         <option value="ipv6">IPv6</option>
+                        <option value="tls">TLS</option>
+                        <option value="dhcp">DHCP</option>
+                        <option value="ntp">NTP</option>
+                        <option value="icmpv6">ICMPv6</option>
                     </optgroup>
                     <optgroup label="Combined">
                         <option value="tcp && !dns">TCP (no DNS)</option>
@@ -71,6 +75,7 @@
                         <option value="outbound && tcp">Outbound TCP</option>
                         <option value="inbound && !arp">Inbound (no ARP)</option>
                         <option value="external && dns">External DNS</option>
+                        <option value="tls && outbound">Outbound TLS</option>
                     </optgroup>
                     <optgroup label="Port">
                         <option value="port=80">Port 80</option>
@@ -79,7 +84,7 @@
                         <option value="port=22">Port 22 (SSH)</option>
                     </optgroup>
                 </select>
-                <input id="display-filter" type="text" placeholder="Filter: tcp, inbound, outbound, ip==10.0.0.1, broadcast...">
+                <input id="display-filter" type="text" placeholder="Filter: tcp, tls, flow==1, stream==1, tls.sni==example.com...">
                 <div class="toolbar-sep"></div>
                 <button id="upload-btn">
                     Open PCAP
@@ -89,6 +94,11 @@
             </div>
 
             <div id="capture-area">
+                <div class="capture-view-tabs">
+                    <button class="capture-view-tab active" data-view="packets">Packets</button>
+                    <button class="capture-view-tab" data-view="flows">Flows</button>
+                </div>
+
                 <div id="panes">
                     <div id="packet-list-pane" class="pane">
                         <table id="packet-table">
@@ -117,6 +127,30 @@
                         <div id="hex-content">
                             <div class="empty-state">Select a packet to view hex dump</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Flow Table (hidden by default) -->
+                <div id="flow-table-wrap" style="display:none">
+                    <div class="flow-table-container">
+                        <table id="flow-table" class="flow-table">
+                            <thead>
+                                <tr>
+                                    <th class="flow-th" data-sort="id">Flow</th>
+                                    <th class="flow-th" data-sort="srcIp">Source</th>
+                                    <th class="flow-th" data-sort="dstIp">Destination</th>
+                                    <th class="flow-th" data-sort="protocol">Protocol</th>
+                                    <th class="flow-th" data-sort="packetCount">Packets</th>
+                                    <th class="flow-th" data-sort="byteCount">Bytes</th>
+                                    <th class="flow-th" data-sort="lastSeen">Duration</th>
+                                    <th class="flow-th" data-sort="tcpState">State</th>
+                                    <th class="flow-th">Fwd/Rev</th>
+                                </tr>
+                            </thead>
+                            <tbody id="flow-table-body">
+                                <tr><td colspan="9" class="flow-empty">No flows detected — start a capture to see connections</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -150,6 +184,7 @@
                         <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>HTTP</span>
                         <span class="legend-item"><span class="legend-dot" style="background:var(--peach)"></span>ARP</span>
                         <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>ICMP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--pink)"></span>TLS</span>
                     </div>
                 </div>
                 <div id="v3d-controls-panel" class="v3d-controls-hidden">
@@ -161,6 +196,7 @@
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="http" checked> HTTP</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="arp" checked> ARP</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="icmp" checked> ICMP</label>
+                        <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="tls" checked> TLS</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="ipv6" checked> IPv6</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="other" checked> Other</label>
                     </div>
@@ -398,11 +434,31 @@
         </div>
     </div>
 
+    <!-- Stream Viewer Overlay -->
+    <div id="stream-overlay" class="stream-overlay">
+        <div class="stream-panel">
+            <div class="stream-header">
+                <span class="stream-title">Follow TCP Stream</span>
+                <div class="stream-view-btns">
+                    <button class="stream-view-btn active" data-mode="ascii">ASCII</button>
+                    <button class="stream-view-btn" data-mode="hex">Hex</button>
+                    <button class="stream-view-btn" data-mode="raw">Raw</button>
+                </div>
+                <button id="stream-close-btn" class="stream-close-btn">&times;</button>
+            </div>
+            <div id="stream-content" class="stream-content">
+                <div class="stream-empty">Select a TCP packet and click "Follow Stream" to view reassembled data</div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/router.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/hexview.js"></script>
     <script src="js/packetdetail.js"></script>
     <script src="js/packetlist.js"></script>
+    <script src="js/flows.js"></script>
+    <script src="js/streams.js"></script>
     <script src="js/view3d.js"></script>
     <script src="js/security.js"></script>
     <script src="js/packetmodal.js"></script>

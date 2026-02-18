@@ -458,6 +458,11 @@ tr.proto-http { color: var(--green); }
 tr.proto-arp { color: var(--peach); }
 tr.proto-icmp { color: var(--yellow); }
 tr.proto-ipv6 { color: var(--mauve); }
+tr.proto-tls { color: var(--pink); }
+tr.proto-dhcp { color: var(--teal); }
+tr.proto-ntp { color: var(--yellow); }
+tr.proto-icmpv6 { color: var(--mauve); }
+tr.proto-vlan { color: var(--peach); }
 
 /* Detail tree */
 .detail-tree {
@@ -1120,6 +1125,9 @@ tr.proto-ipv6 { color: var(--mauve); }
 .sec-proto-fill-icmp { background: var(--yellow); }
 .sec-proto-fill-arp { background: var(--peach); }
 .sec-proto-fill-http { background: var(--green); }
+.sec-proto-fill-tls { background: var(--pink); }
+.sec-proto-fill-dhcp { background: var(--teal); }
+.sec-proto-fill-ntp { background: var(--yellow); }
 .sec-proto-fill-other { background: var(--mauve); }
 
 .sec-proto-pct {
@@ -1834,4 +1842,385 @@ tr.proto-ipv6 { color: var(--mauve); }
     height: 100%;
     color: var(--text-dim);
     font-size: 13px;
+}
+
+/* ==================== CAPTURE VIEW TABS ==================== */
+.capture-view-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    padding: 0 12px;
+}
+
+.capture-view-tab {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.capture-view-tab:hover {
+    color: var(--text-sub);
+}
+.capture-view-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ==================== FLOW TABLE ==================== */
+#flow-table-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.flow-table-container {
+    flex: 1;
+    overflow: auto;
+}
+
+.flow-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.flow-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.flow-th {
+    background: var(--bg-surface);
+    color: var(--text-sub);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.flow-th:hover {
+    color: var(--accent);
+}
+
+.flow-table td {
+    padding: 4px 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--table-border);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.flow-row:hover {
+    background: var(--selection);
+}
+
+.flow-id {
+    color: var(--text-dim);
+    font-size: 11px;
+    width: 50px;
+}
+
+.flow-dir {
+    color: var(--text-dim);
+    font-size: 11px;
+}
+
+.flow-empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 20px !important;
+    font-size: 13px;
+}
+
+/* Flow TCP state badges */
+.flow-state-new { color: var(--text-dim); }
+.flow-state-synsent { color: var(--yellow); }
+.flow-state-synreceived { color: var(--yellow); }
+.flow-state-established { color: var(--green); }
+.flow-state-finwait { color: var(--peach); }
+.flow-state-closed { color: var(--red); }
+
+/* ==================== STREAM VIEWER ==================== */
+.stream-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    background: rgba(0, 0, 0, 0.6);
+    justify-content: center;
+    align-items: center;
+}
+.stream-overlay.stream-visible {
+    display: flex;
+}
+
+.stream-panel {
+    width: 90%;
+    max-width: 1000px;
+    height: 80vh;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.stream-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.stream-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    flex: 1;
+}
+
+.stream-view-btns {
+    display: flex;
+    gap: 0;
+}
+
+.stream-view-btn {
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--bg-overlay);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.stream-view-btn:first-child {
+    border-radius: 3px 0 0 3px;
+}
+.stream-view-btn:last-child {
+    border-radius: 0 3px 3px 0;
+}
+.stream-view-btn.active {
+    background: var(--accent);
+    color: var(--bg-base);
+    border-color: var(--accent);
+}
+
+.stream-close-btn {
+    font-size: 20px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+.stream-close-btn:hover {
+    color: var(--red);
+}
+
+.stream-content {
+    flex: 1;
+    overflow: auto;
+    padding: 12px;
+}
+
+.stream-loading {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 40px;
+}
+
+.stream-empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 40px;
+}
+
+.stream-http-info {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+.stream-http-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.stream-http-line {
+    margin-bottom: 3px;
+    color: var(--text-sub);
+}
+
+.stream-http-method {
+    font-weight: 700;
+    color: var(--green);
+}
+
+.stream-http-status {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.stream-http-headers-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-top: 8px;
+    margin-bottom: 3px;
+}
+
+.stream-http-header {
+    font-size: 11px;
+    color: var(--text-dim);
+    padding-left: 8px;
+}
+
+.stream-http-body {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg-overlay);
+    border-radius: 4px;
+    padding: 8px;
+    margin-top: 4px;
+    max-height: 200px;
+    overflow: auto;
+    color: var(--text-sub);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.stream-data-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stream-direction {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.stream-direction-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+}
+
+.stream-client .stream-direction-label {
+    background: rgba(122, 162, 247, 0.15);
+    color: var(--accent);
+}
+
+.stream-server .stream-direction-label {
+    background: rgba(158, 206, 106, 0.15);
+    color: var(--green);
+}
+
+.stream-data-pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 8px 10px;
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.stream-client-data {
+    background: rgba(122, 162, 247, 0.05);
+    color: var(--accent);
+    border: 1px solid rgba(122, 162, 247, 0.15);
+}
+
+.stream-server-data {
+    background: rgba(158, 206, 106, 0.05);
+    color: var(--green);
+    border: 1px solid rgba(158, 206, 106, 0.15);
+}
+
+.stream-nonprint {
+    color: var(--text-dim);
+    opacity: 0.4;
+}
+
+/* ==================== PACKET CONTEXT MENU ==================== */
+.pkt-context-menu {
+    position: fixed;
+    z-index: 3000;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 180px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.pkt-ctx-item {
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.pkt-ctx-item:hover {
+    background: var(--selection);
+}
+
+.pkt-ctx-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+/* ==================== FOLLOW STREAM BUTTON ==================== */
+.detail-stream-btn {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-overlay);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+}
+.detail-stream-btn:hover {
+    background: rgba(158, 206, 106, 0.15);
 }

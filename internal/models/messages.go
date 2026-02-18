@@ -24,8 +24,8 @@ type InterfaceInfo struct {
 
 // CaptureStats reports capture statistics.
 type CaptureStats struct {
-	PacketCount   int `json:"packetCount"`
-	DroppedCount  int `json:"droppedCount"`
+	PacketCount   int    `json:"packetCount"`
+	DroppedCount  int    `json:"droppedCount"`
 	InterfaceName string `json:"interfaceName"`
 }
 
@@ -33,3 +33,39 @@ type CaptureStats struct {
 type ErrorPayload struct {
 	Message string `json:"message"`
 }
+
+// FlowInfo is sent in flow_update broadcasts.
+type FlowInfo struct {
+	ID          uint64 `json:"id"`
+	SrcIP       string `json:"srcIp"`
+	DstIP       string `json:"dstIp"`
+	SrcPort     uint16 `json:"srcPort"`
+	DstPort     uint16 `json:"dstPort"`
+	Protocol    string `json:"protocol"`
+	PacketCount int    `json:"packetCount"`
+	ByteCount   int64  `json:"byteCount"`
+	FirstSeen   int64  `json:"firstSeen"`
+	LastSeen    int64  `json:"lastSeen"`
+	TCPState    string `json:"tcpState,omitempty"`
+	FwdPackets  int    `json:"fwdPackets"`
+	FwdBytes    int64  `json:"fwdBytes"`
+	RevPackets  int    `json:"revPackets"`
+	RevBytes    int64  `json:"revBytes"`
+}
+
+// StreamEvent is sent for stream-related WebSocket events.
+type StreamEvent struct {
+	EventType string          `json:"eventType"` // stream_start, stream_data
+	StreamID  uint64          `json:"streamId"`
+	SrcAddr   string          `json:"srcAddr,omitempty"`
+	DstAddr   string          `json:"dstAddr,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
+}
+
+// GetStreamDataRequest is sent by the client to request stream data.
+type GetStreamDataRequest struct {
+	StreamID uint64 `json:"streamId"`
+}
+
+// GetFlowsRequest is sent by the client to request the flow table.
+type GetFlowsRequest struct{}

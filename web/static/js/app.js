@@ -13,6 +13,9 @@ const App = (() => {
     let msgRafId = null;
     const MSG_BATCH_SIZE = 100;
 
+    // Current capture view: 'packets' or 'flows'
+    let captureView = 'packets';
+
     function init() {
         els.interfaceSelect = document.getElementById('interface-select');
         els.bpfFilter = document.getElementById('bpf-filter');
@@ -44,8 +47,11 @@ const App = (() => {
         View3D.init();
         Security.init();
         PacketModal.init();
+        Flows.init();
+        Streams.init();
         initResizers();
         initGraphControls();
+        initCaptureViewTabs();
         loadTheme();
 
         // Initialize router last — it triggers page navigation
@@ -94,6 +100,30 @@ const App = (() => {
         els.displayFilter.value = val;
         els.filterPreset.value = '';
         applyDisplayFilter();
+    }
+
+    // --- Capture View Tabs (Packets / Flows) ---
+    function initCaptureViewTabs() {
+        document.querySelectorAll('.capture-view-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.capture-view-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                captureView = tab.dataset.view;
+
+                const packetsView = document.getElementById('panes');
+                const flowsView = document.getElementById('flow-table-wrap');
+
+                if (captureView === 'flows') {
+                    if (packetsView) packetsView.style.display = 'none';
+                    if (flowsView) flowsView.style.display = 'flex';
+                    Flows.setVisible(true);
+                } else {
+                    if (packetsView) packetsView.style.display = 'flex';
+                    if (flowsView) flowsView.style.display = 'none';
+                    Flows.setVisible(false);
+                }
+            });
+        });
     }
 
     // --- WebSocket ---
@@ -168,6 +198,15 @@ const App = (() => {
                 break;
             case 'error':
                 showToast(msg.payload.message, 'error');
+                break;
+            case 'flow_update':
+                Flows.update(msg.payload);
+                break;
+            case 'stream_data':
+                Streams.handleStreamData(msg.payload);
+                break;
+            case 'flows':
+                Flows.update(msg.payload);
                 break;
         }
     }
@@ -292,6 +331,7 @@ const App = (() => {
         HexView.clear();
         View3D.clear();
         Security.clear();
+        Flows.clear();
         updateCounts();
     }
 

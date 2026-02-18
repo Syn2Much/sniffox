@@ -25,13 +25,17 @@ const View3D = (() => {
 
     // Brighter, more saturated protocol colors
     const PROTO_COLORS = {
-        tcp:  0x7aa2f7,
-        udp:  0x5cb4d6,
-        dns:  0x73daca,
-        http: 0x9ece6a,
-        arp:  0xff9e64,
-        icmp: 0xe0af68,
-        ipv6: 0xbb9af7,
+        tcp:    0x7aa2f7,
+        udp:    0x5cb4d6,
+        dns:    0x73daca,
+        http:   0x9ece6a,
+        arp:    0xff9e64,
+        icmp:   0xe0af68,
+        ipv6:   0xbb9af7,
+        tls:    0xf5a0d0,
+        dhcp:   0x94e2d5,
+        ntp:    0xf9e2af,
+        icmpv6: 0xcba6f7,
     };
     const DEFAULT_COLOR = 0xc0caf5;
 
