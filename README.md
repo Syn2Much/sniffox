@@ -3,6 +3,7 @@
 A network sniffer/packet analyzer in your browser. Real-time packet capture, protocol dissection, 3D traffic visualization, and threat detection.
 
 Built with Go and an embedded web UI — no Electron, no desktop app, just libpcap.
+<img width="1590" height="941" alt="image" src="https://github.com/user-attachments/assets/a6a07d9b-04b4-4130-b933-17aed86aaa4a" />
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
