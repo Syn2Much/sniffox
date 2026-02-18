@@ -4,7 +4,7 @@ Real-time network packet analyzer in the browser. Capture, dissect, visualize, a
 
 Built with Go + embedded web UI. No Electron, no desktop app, just libpcap.
 
-<img width="1590" height="941" alt="image" src="https://github.com/user-attachments/assets/a6a07d9b-04b4-4130-b933-17aed86aaa4a" />
+<img alt="image" src="https://github.com/user-attachments/assets/a6a07d9b-04b4-4130-b933-17aed86aaa4a" />
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
