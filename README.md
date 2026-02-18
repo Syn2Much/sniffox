@@ -1,4 +1,4 @@
-# Sniffox
+# Sniffox 🦊
 
 Real-time network packet analyzer in the browser. Capture, dissect, visualize, and detect threats — all from a single tab.
 
