@@ -2,6 +2,57 @@
 
 All notable changes to Sniffox are documented here.
 
+## [0.8.0] - 2026-02-18
+
+### Added
+- **TCP Stream Reassembly** — full byte-stream reconstruction via gopacket `tcpassembly`
+  - "Follow TCP Stream" dialog from packet detail or right-click context menu
+  - Client/server data displayed in alternating colors (ASCII, Hex, Raw views)
+  - Automatic HTTP request/response extraction with headers and body preview
+  - Per-direction 256KB ring buffer, assembler runs in dedicated goroutine
+  - `stream==N` display filter to isolate packets belonging to a stream
+  - New backend: `internal/stream/assembler.go`, `internal/stream/http.go`
+  - New frontend: `web/static/js/streams.js`
+
+### Added
+- **WebGL Fallback** — graceful degradation when GPU/WebGL is unavailable
+  - Try/catch detection before Three.js renderer creation
+  - Shows friendly "WebGL Not Available" message instead of crashing the page
+
+### Fixed
+- Capture area layout broken after adding flow tabs — added `flex-direction: column` to `#capture-area`
+
+## [0.7.0] - 2026-02-18
+
+### Added
+- **Flow Tracking** — packets grouped into bidirectional connections
+  - Sortable flow table with Packets/Flows tab toggle
+  - Per-flow stats: packet count, byte count, duration, TCP state
+  - TCP state machine tracking (SYN_SENT → ESTABLISHED → FIN_WAIT → CLOSED)
+  - Directional counters (forward/reverse packets and bytes)
+  - Click a flow row to filter packet list by `flow==N`
+  - Flow table broadcasts every 1 second via WebSocket
+  - New backend: `internal/flow/tracker.go`, `internal/parser/extract.go`
+  - New frontend: `web/static/js/flows.js`
+- **Right-click context menu** on packet list — Follow TCP Stream, Filter by Flow, Filter by Source/Dest IP
+
+## [0.6.0] - 2026-02-18
+
+### Added
+- **Expanded Protocol Support** — 6 new protocol parsers (14 total)
+  - TLS with SNI extraction from ClientHello (manual byte parser for handshake internals)
+  - DHCPv4 with operation type, client MAC, message type, requested IP
+  - NTP with version, mode, stratum, reference timestamp
+  - ICMPv6 with type code and checksum
+  - VLAN (802.1Q) with VLAN ID, priority, encapsulated type
+  - `tls.sni==hostname` display filter for TLS server name inspection
+- New protocol filter keywords: `tls`, `dhcp`, `ntp`, `icmpv6`, `vlan`
+- Protocol colors for new protocols in packet list and 3D graph
+- New backend: `internal/parser/tls.go`
+
+### Changed
+- Rebranded from TCPDumper to **Sniffox** — binary, module path, all UI references updated
+
 ## [0.5.0] - 2026-02-18
 
 ### Added
