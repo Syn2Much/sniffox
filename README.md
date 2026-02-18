@@ -1,6 +1,6 @@
 # TCPDumper
 
-A browser-based packet analyzer built in Go. Think Wireshark-lite — live capture or PCAP upload, real-time web UI, 3D network visualization, and security threat detection.
+A real-time, browser-based network packet analyzer and security operations dashboard built in Go. Capture live traffic or upload PCAPs, inspect every byte with deep protocol dissection, visualize your network in 3D, and detect attacks as they happen — all from a single tab.
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -13,7 +13,31 @@ Capture packets live on any network interface or upload a `.pcap` file for offli
 - **Protocol parsing** for Ethernet, ARP, IPv4/v6, TCP, UDP, ICMP, DNS, and HTTP
 - **3-pane layout** — packet list, protocol tree, and hex/ASCII dump
 - **Display filters** with boolean logic (`tcp && !dns`, `ip==10.0.0.1`, `port==443`)
+- **Direction filters** — `inbound`, `outbound`, `local`, `external`, `broadcast`
 - **Virtual scrolling** so it doesn't choke on thousands of packets
+
+## Security Dashboard
+
+A full security operations view with live metric cards updated once per second:
+
+- **Threat Level** — SAFE / LOW / MEDIUM / HIGH / CRITICAL gauge, color-coded by active alert severity
+- **Traffic Rate** — packets/s and bytes/s with a 60-second sparkline
+- **Protocol Distribution** — horizontal bar chart showing TCP, UDP, DNS, ICMP, ARP, HTTP, and Other
+- **Top Talkers** — top 5 source IPs by packet count with relative volume bars
+- **Active Attacks** — count and severity-colored tags for currently active threat types
+- **Bandwidth** — inbound/outbound rates and totals with dual sparkline
+
+When a SYN flood or UDP flood is detected, a **DDoS Attack Banner** activates with a pulsing red border, attack details, and a 30-bar intensity chart.
+
+### Threat Detection
+
+11 attack pattern detectors running in real time:
+
+- Port Scan, SYN Flood, Xmas Tree Scan, FIN Scan, NULL Scan
+- Brute Force (SSH, RDP, FTP, Telnet, databases), ICMP Sweep, ARP Spoofing
+- DNS Tunneling, UDP Flood, Large Packet / Amplification Detection
+
+Alerts appear in a log below the dashboard sorted by severity. Click any IP in an alert to filter the packet list.
 
 ## 3D Network Graph
 
@@ -26,27 +50,17 @@ Expand it fullscreen and you get:
 - Live stats — top talkers, protocol breakdown, node/edge counts
 - Orbit, pan, and zoom controls
 
-## Security Alerts
-
-11 attack pattern detectors running in real time:
-
-- Port Scan, SYN Flood, Xmas Tree Scan, FIN Scan, NULL Scan
-- Brute Force (SSH, RDP, FTP, Telnet), ICMP Sweep, ARP Spoofing
-- DNS Tunneling, UDP Flood, Large Packet Detection
-
-Alerts show up in a collapsible side panel sorted by severity. Click any IP in an alert to filter the packet list.
-
 ## Deep Packet Analysis
 
 Click any packet and hit **Deep Analysis** for a tabbed breakdown:
 
-- **Summary** — quick overview
-- **Layers** — SVG protocol flow diagram
-- **Hex Dump** — full byte dump with ASCII
+- **Summary** — quick overview with protocol flow diagram
+- **Layers** — full protocol layer detail with field-level inspection
+- **Hex Dump** — complete byte dump with ASCII sidebar
 - **Visualization** — byte distribution chart, Shannon entropy, color-coded byte heatmap
 - **Payload** — automatic string extraction, Base64 detection, URL-decoded content
 - **TCP flags** — visual flag boxes (URG, ACK, PSH, RST, SYN, FIN)
-- **Export** — copy as JSON, download hex dump
+- **Export** — copy as JSON, download JSON, download hex dump
 
 ## Setup
 
@@ -72,8 +86,8 @@ Open `http://localhost:8080`.
 3. Hit **Start**
 4. Click any packet row for details and hex dump
 5. Use display filters to narrow things down
-6. Expand the 3D view for the full network graph
-7. Toggle **Alerts** to watch for suspicious patterns
+6. Switch to **Security** to see the live dashboard and alerts
+7. Expand the **Network Graph** for a 3D view of your traffic
 8. Upload `.pcap` files via **Open PCAP** for offline analysis
 
 ## Project Structure
@@ -90,15 +104,16 @@ tcpdumper/
 └── web/
     └── static/
         ├── index.html
-        ├── css/style.css       # Catppuccin dark/light themes
+        ├── css/style.css       # Dark / Dim / Light themes
         └── js/
             ├── app.js          # WebSocket, message dispatch
+            ├── router.js       # Client-side page routing
             ├── packetlist.js   # Virtual-scrolled packet table
             ├── packetdetail.js # Protocol tree
             ├── hexview.js      # Hex + ASCII dump
             ├── filters.js      # Display filter parser
             ├── view3d.js       # Three.js 3D graph
-            ├── security.js     # Threat detection
+            ├── security.js     # Threat detection + security dashboard
             └── packetmodal.js  # Deep analysis modal
 ```
 
