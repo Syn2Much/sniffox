@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCPDumper</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="toolbar">
+            <select id="interface-select">
+                <option value="">-- Select Interface --</option>
+            </select>
+            <input id="bpf-filter" type="text" placeholder="BPF filter (e.g. tcp port 80)">
+            <button id="btn-start">&#9654; Start</button>
+            <button id="btn-stop" disabled>&#9632; Stop</button>
+            <div class="toolbar-sep"></div>
+            <select id="filter-preset">
+                <option value="">Preset Filters</option>
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="dns">DNS</option>
+                <option value="http">HTTP</option>
+                <option value="arp">ARP</option>
+                <option value="icmp">ICMP</option>
+                <option value="ipv6">IPv6</option>
+                <option value="tcp && !dns">TCP (no DNS)</option>
+                <option value="!arp">No ARP</option>
+                <option value="port=80">Port 80</option>
+                <option value="port=443">Port 443</option>
+                <option value="port=53">Port 53 (DNS)</option>
+            </select>
+            <input id="display-filter" type="text" placeholder="Display filter (e.g. tcp, ip==10.0.0.1, ip.src==...)">
+            <div class="toolbar-sep"></div>
+            <button id="upload-btn">
+                Open PCAP
+                <input type="file" id="pcap-file" accept=".pcap,.pcapng,.cap">
+            </button>
+            <button id="btn-clear">Clear</button>
+            <div class="toolbar-sep"></div>
+            <button id="btn-theme" title="Toggle dark/light mode">
+                <span id="theme-icon">&#9788;</span>
+            </button>
+            <button id="btn-alerts-toggle" title="Toggle security alerts panel">
+                Alerts <span id="alert-badge" class="alert-badge" style="display:none">0</span>
+            </button>
+        </div>
+
+        <div id="main-area">
+            <div id="panes">
+                <div id="packet-list-pane" class="pane">
+                    <table id="packet-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Time</th>
+                                <th>Source</th>
+                                <th>Destination</th>
+                                <th>Protocol</th>
+                                <th>Length</th>
+                                <th>Info</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packet-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="resizer" id="resizer-1"></div>
+                <div id="packet-detail-pane" class="pane">
+                    <div class="detail-tree" id="detail-tree">
+                        <div class="empty-state">Select a packet to view details</div>
+                    </div>
+                </div>
+                <div class="resizer" id="resizer-2"></div>
+                <div id="hex-view-pane" class="pane">
+                    <div id="hex-content">
+                        <div class="empty-state">Select a packet to view hex dump</div>
+                    </div>
+                </div>
+                <div class="resizer" id="resizer-3"></div>
+                <div id="view3d-pane" class="pane">
+                    <div id="view3d-toolbar">
+                        <span class="view3d-title">Network Graph</span>
+                        <button id="btn-3d-controls" title="Toggle controls panel">Controls</button>
+                        <button id="btn-3d-reset" title="Reset camera">Reset</button>
+                        <button id="btn-3d-toggle" title="Pause/resume animation">Pause</button>
+                        <button id="btn-3d-expand" title="Expand to fullscreen">Expand</button>
+                    </div>
+                    <canvas id="view3d-canvas"></canvas>
+                    <div id="view3d-legend">
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>TCP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--accent-dim)"></span>UDP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--teal)"></span>DNS</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>HTTP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--peach)"></span>ARP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>ICMP</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="alerts-panel" class="alerts-hidden">
+                <div id="alerts-header">
+                    <span class="alerts-title">Security Alerts</span>
+                    <button id="btn-alerts-clear" title="Clear all alerts">Clear</button>
+                </div>
+                <div id="alert-list">
+                    <div class="empty-state">No alerts detected</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-bar">
+            <div class="status-left">
+                <span><span id="connection-indicator" class="disconnected"></span><span id="connection-status">Disconnected</span></span>
+                <span>Packets: <span id="packet-count">0</span></span>
+                <span>Displayed: <span id="displayed-count">0</span></span>
+                <span>Alerts: <span id="alert-total">0</span></span>
+            </div>
+            <div class="status-right">
+                <span id="capture-info"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <!-- 3D View expanded overlay -->
+    <div id="v3d-expand-overlay">
+        <div class="v3d-expand-header">
+            <span class="v3d-expand-title">Network Graph — Expanded View</span>
+            <button id="v3d-expand-close" class="v3d-expand-close-btn">&times;</button>
+        </div>
+        <div class="v3d-expand-body">
+            <div id="v3d-expand-canvas-wrap"></div>
+            <div id="v3d-controls-panel" class="v3d-controls-hidden">
+                <div class="v3d-ctrl-section">
+                    <div class="v3d-ctrl-title">Protocol Filters</div>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="tcp" checked> TCP</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="udp" checked> UDP</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="dns" checked> DNS</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="http" checked> HTTP</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="arp" checked> ARP</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="icmp" checked> ICMP</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="ipv6" checked> IPv6</label>
+                    <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="other" checked> Other</label>
+                </div>
+                <div class="v3d-ctrl-section">
+                    <div class="v3d-ctrl-title">Visual Settings</div>
+                    <label class="v3d-slider-label">Speed <span id="v3d-speed-val">1.00</span>
+                        <input type="range" id="v3d-speed" class="v3d-slider">
+                    </label>
+                    <label class="v3d-slider-label">Node Size <span id="v3d-nodesize-val">1.00</span>
+                        <input type="range" id="v3d-nodesize" class="v3d-slider">
+                    </label>
+                    <label class="v3d-slider-label">Edge Opacity <span id="v3d-edgeopacity-val">0.25</span>
+                        <input type="range" id="v3d-edgeopacity" class="v3d-slider">
+                    </label>
+                    <label class="v3d-slider-label">Arc Height <span id="v3d-archeight-val">15.00</span>
+                        <input type="range" id="v3d-archeight" class="v3d-slider">
+                    </label>
+                </div>
+                <div class="v3d-ctrl-section">
+                    <div class="v3d-ctrl-title">Find IP</div>
+                    <input type="text" id="v3d-ip-search" placeholder="Search IP..." class="v3d-ip-input">
+                </div>
+                <div class="v3d-ctrl-section">
+                    <div class="v3d-ctrl-title">Stats</div>
+                    <div id="v3d-stats-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Packet analysis modal -->
+    <div id="packet-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-titlebar">
+                <span class="modal-title">Packet Analysis</span>
+                <span id="modal-pkt-num" class="modal-pkt-num"></span>
+                <span id="modal-pkt-proto" class="modal-proto"></span>
+                <span id="modal-pkt-info" class="modal-pkt-info"></span>
+                <div class="modal-export-btns">
+                    <button id="modal-export-copy" class="modal-export-btn" title="Copy JSON">Copy JSON</button>
+                    <button id="modal-export-json" class="modal-export-btn" title="Download JSON">Export JSON</button>
+                    <button id="modal-export-hex" class="modal-export-btn" title="Download Hex">Export Hex</button>
+                </div>
+                <button id="modal-close" class="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-tabs">
+                <button class="modal-tab-btn modal-tab-active" data-tab="summary">Summary</button>
+                <button class="modal-tab-btn" data-tab="layers">Layers</button>
+                <button class="modal-tab-btn" data-tab="hex">Hex Dump</button>
+                <button class="modal-tab-btn" data-tab="visual">Visualization</button>
+                <button class="modal-tab-btn" data-tab="payload">Payload</button>
+            </div>
+            <div class="modal-body">
+                <!-- Summary Tab -->
+                <div class="modal-tab-panel modal-tab-panel-visible" data-panel="summary">
+                    <div class="modal-section">
+                        <div class="modal-section-title">Summary</div>
+                        <div id="modal-summary" class="modal-summary-grid"></div>
+                    </div>
+                    <div class="modal-section">
+                        <div class="modal-section-title">Protocol Flow</div>
+                        <div id="modal-flow" class="modal-flow-wrap"></div>
+                    </div>
+                    <div class="modal-columns">
+                        <div class="modal-col">
+                            <div class="modal-section">
+                                <div class="modal-section-title">Protocol Layers</div>
+                                <div id="modal-layers"></div>
+                            </div>
+                        </div>
+                        <div class="modal-col">
+                            <div class="modal-section">
+                                <div class="modal-section-title">TCP Flags</div>
+                                <div id="modal-flags"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layers Tab -->
+                <div class="modal-tab-panel" data-panel="layers">
+                    <div class="modal-section">
+                        <div class="modal-section-title">Full Protocol Layer Detail</div>
+                        <div id="modal-layers-full"></div>
+                    </div>
+                </div>
+
+                <!-- Hex Tab -->
+                <div class="modal-tab-panel" data-panel="hex">
+                    <div class="modal-section">
+                        <div class="modal-section-title">Hex Dump</div>
+                        <pre id="modal-hex" class="modal-hex-pre"></pre>
+                    </div>
+                </div>
+
+                <!-- Visualization Tab -->
+                <div class="modal-tab-panel" data-panel="visual">
+                    <div class="modal-section">
+                        <div class="modal-section-title">Byte Distribution</div>
+                        <div id="modal-bytechart"></div>
+                    </div>
+                    <div class="modal-section">
+                        <div class="modal-section-title">Byte Heatmap</div>
+                        <div id="modal-heatmap"></div>
+                    </div>
+                </div>
+
+                <!-- Payload Tab -->
+                <div class="modal-tab-panel" data-panel="payload">
+                    <div class="modal-section">
+                        <div class="modal-section-title">ASCII Payload</div>
+                        <pre id="modal-ascii" class="modal-ascii-pre"></pre>
+                    </div>
+                    <div class="modal-section">
+                        <div class="modal-section-title">Payload Decode</div>
+                        <div id="modal-payload-decode"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/filters.js"></script>
+    <script src="js/hexview.js"></script>
+    <script src="js/packetdetail.js"></script>
+    <script src="js/packetlist.js"></script>
+    <script src="js/view3d.js"></script>
+    <script src="js/security.js"></script>
+    <script src="js/packetmodal.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

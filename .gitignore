@@ -1,0 +1,5 @@
+tcpdumper
+*.pcap
+*.pcapng
+*.cap
+.env
