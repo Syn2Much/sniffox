@@ -1,32 +1,25 @@
-// packetmodal.js — Full-page packet deep analysis modal with tabs and graphical options
+// packetmodal.js — Analysis page: deep packet inspection with tabs and graphical views
 'use strict';
 
 const PacketModal = (() => {
-    let modal = null;
+    let body = null;
     let currentPkt = null;
     let activeTab = 'summary';
 
     function init() {
-        modal = document.getElementById('packet-modal');
-        document.getElementById('modal-close').addEventListener('click', close);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) close();
-        });
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.classList.contains('modal-visible')) close();
-        });
+        body = document.getElementById('analysis-body');
 
         // Tab switching
-        modal.querySelectorAll('.modal-tab-btn').forEach(btn => {
+        document.querySelectorAll('.analysis-tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 switchTab(btn.dataset.tab);
             });
         });
 
         // Export buttons
-        const exportJsonBtn = document.getElementById('modal-export-json');
-        const exportHexBtn = document.getElementById('modal-export-hex');
-        const exportCopyBtn = document.getElementById('modal-export-copy');
+        const exportJsonBtn = document.getElementById('analysis-export-json');
+        const exportHexBtn = document.getElementById('analysis-export-hex');
+        const exportCopyBtn = document.getElementById('analysis-export-copy');
         if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportJson);
         if (exportHexBtn) exportHexBtn.addEventListener('click', exportHex);
         if (exportCopyBtn) exportCopyBtn.addEventListener('click', exportCopy);
@@ -35,13 +28,15 @@ const PacketModal = (() => {
     function open(pkt) {
         if (!pkt) return;
         currentPkt = pkt;
-        modal.classList.add('modal-visible');
+
+        // Mark body as having a packet (hides empty state, shows tabs)
+        if (body) body.classList.add('has-packet');
 
         // Header
-        document.getElementById('modal-pkt-num').textContent = '#' + pkt.number;
-        document.getElementById('modal-pkt-proto').textContent = pkt.protocol;
-        document.getElementById('modal-pkt-proto').className = 'modal-proto proto-' + pkt.protocol.toLowerCase();
-        document.getElementById('modal-pkt-info').textContent = pkt.info;
+        document.getElementById('analysis-pkt-num').textContent = '#' + pkt.number;
+        document.getElementById('analysis-pkt-proto').textContent = pkt.protocol;
+        document.getElementById('analysis-pkt-proto').className = 'modal-proto proto-' + pkt.protocol.toLowerCase();
+        document.getElementById('analysis-pkt-info').textContent = pkt.info;
 
         // Render all tabs content
         renderSummary(pkt);
@@ -56,20 +51,18 @@ const PacketModal = (() => {
 
         // Show summary tab by default
         switchTab('summary');
-    }
 
-    function close() {
-        modal.classList.remove('modal-visible');
-        currentPkt = null;
+        // Navigate to the analysis page
+        Router.navigate('analysis');
     }
 
     function switchTab(tab) {
         activeTab = tab;
-        modal.querySelectorAll('.modal-tab-btn').forEach(btn => {
-            btn.classList.toggle('modal-tab-active', btn.dataset.tab === tab);
+        document.querySelectorAll('.analysis-tab-btn').forEach(btn => {
+            btn.classList.toggle('analysis-tab-active', btn.dataset.tab === tab);
         });
-        modal.querySelectorAll('.modal-tab-panel').forEach(panel => {
-            panel.classList.toggle('modal-tab-panel-visible', panel.dataset.panel === tab);
+        document.querySelectorAll('.analysis-tab-panel').forEach(panel => {
+            panel.classList.toggle('analysis-tab-panel-visible', panel.dataset.panel === tab);
         });
     }
 
@@ -441,7 +434,7 @@ const PacketModal = (() => {
         if (!currentPkt) return;
         const json = JSON.stringify(currentPkt, null, 2);
         navigator.clipboard.writeText(json).then(() => {
-            const btn = document.getElementById('modal-export-copy');
+            const btn = document.getElementById('analysis-export-copy');
             if (btn) {
                 btn.textContent = 'Copied!';
                 setTimeout(() => { btn.textContent = 'Copy JSON'; }, 1500);
@@ -463,5 +456,5 @@ const PacketModal = (() => {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    return { init, open, close };
+    return { init, open };
 })();

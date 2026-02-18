@@ -5,6 +5,7 @@ const Security = (() => {
     let container = null;
     let alertCount = 0;
     let badgeEl = null;
+    let countEl = null;
 
     // Sliding window trackers (keyed by source IP)
     const synTracker = {};      // ip -> { ports: Set, count, firstSeen }
@@ -36,6 +37,12 @@ const Security = (() => {
     function init() {
         container = document.getElementById('alert-list');
         badgeEl = document.getElementById('alert-badge');
+        countEl = document.getElementById('security-alert-count');
+
+        const clearBtn = document.getElementById('btn-alerts-clear');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', clear);
+        }
     }
 
     function analyze(pkt) {
@@ -225,11 +232,12 @@ const Security = (() => {
                 `<span class="alert-pkt">Pkt #${alert.pktNumber}</span>` +
             `</div>`;
 
-        // Click "Filter IP" to populate the display filter
+        // Click "Filter IP" to populate the display filter and navigate to capture page
         el.querySelector('.alert-filter-btn').addEventListener('click', () => {
             const filterInput = document.getElementById('display-filter');
             filterInput.value = 'ip==' + alert.srcIp;
             filterInput.dispatchEvent(new Event('input'));
+            Router.navigate('capture');
         });
 
         container.prepend(el);
@@ -241,9 +249,13 @@ const Security = (() => {
     }
 
     function updateBadge() {
-        if (!badgeEl) return;
-        badgeEl.textContent = alerts.length;
-        badgeEl.style.display = alerts.length > 0 ? 'inline-block' : 'none';
+        if (badgeEl) {
+            badgeEl.textContent = alerts.length;
+            badgeEl.style.display = alerts.length > 0 ? 'inline-block' : 'none';
+        }
+        if (countEl) {
+            countEl.textContent = alerts.length > 0 ? alerts.length + ' alert' + (alerts.length !== 1 ? 's' : '') : '';
+        }
     }
 
     function clear() {

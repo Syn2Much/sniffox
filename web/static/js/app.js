@@ -45,13 +45,26 @@ const App = (() => {
         Security.init();
         PacketModal.init();
         initResizers();
-        initAlertsPanel();
+        initGraphControls();
         loadTheme();
+
+        // Initialize router last — it triggers page navigation
+        Router.init();
+        Router.onChange((route) => {
+            // Resize 3D view when graph page becomes visible
+            if (route === 'graph') {
+                View3D.onPageVisible();
+            }
+        });
 
         connect();
     }
 
     // --- Theme ---
+    const THEMES = ['dark', 'dim', 'light'];
+    const THEME_ICONS = { dark: '&#9790;', dim: '&#9788;', light: '&#9728;' };
+    const THEME_LABELS = { dark: 'Dark', dim: 'Dim', light: 'Light' };
+
     function loadTheme() {
         const saved = localStorage.getItem('tcpdumper-theme') || 'dark';
         applyTheme(saved);
@@ -59,15 +72,19 @@ const App = (() => {
 
     function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme');
-        const next = current === 'dark' ? 'light' : 'dark';
+        const idx = THEMES.indexOf(current);
+        const next = THEMES[(idx + 1) % THEMES.length];
         applyTheme(next);
         localStorage.setItem('tcpdumper-theme', next);
     }
 
     function applyTheme(theme) {
+        if (!THEMES.includes(theme)) theme = 'dark';
         document.documentElement.setAttribute('data-theme', theme);
-        els.themeIcon.innerHTML = theme === 'dark' ? '&#9788;' : '&#9790;';
-        View3D.updateTheme(theme === 'dark');
+        els.themeIcon.innerHTML = THEME_ICONS[theme];
+        const labelEl = document.getElementById('theme-label');
+        if (labelEl) labelEl.textContent = THEME_LABELS[theme];
+        View3D.updateTheme(theme !== 'light');
     }
 
     // --- Filter presets ---
@@ -197,6 +214,8 @@ const App = (() => {
         });
         // Feed local IPs to the filter engine for direction filters
         Filters.setLocalAddresses(allAddrs);
+        // Sync graph page interface select
+        syncGraphInterfaceSelect();
     }
 
     function startCapture() {
@@ -213,6 +232,8 @@ const App = (() => {
     }
 
     function stopCapture() {
+        // Optimistic UI — update immediately for responsiveness
+        setCaptureState(false, null);
         send('stop_capture', null);
     }
 
@@ -221,11 +242,46 @@ const App = (() => {
         els.btnStop.disabled = !capturing;
         els.interfaceSelect.disabled = capturing;
         els.bpfFilter.disabled = capturing;
+        // Sync graph page buttons
+        if (els.graphBtnStart) els.graphBtnStart.disabled = capturing;
+        if (els.graphBtnStop) els.graphBtnStop.disabled = !capturing;
+        if (els.graphIfaceSelect) els.graphIfaceSelect.disabled = capturing;
         if (capturing && info) {
             els.captureInfo.textContent = `Capturing on ${info.interfaceName || ''}`;
         } else {
             els.captureInfo.textContent = 'Capture stopped';
         }
+    }
+
+    // --- Graph page capture controls ---
+    function initGraphControls() {
+        els.graphIfaceSelect = document.getElementById('graph-interface-select');
+        els.graphBtnStart = document.getElementById('graph-btn-start');
+        els.graphBtnStop = document.getElementById('graph-btn-stop');
+        if (!els.graphBtnStart) return;
+
+        els.graphBtnStart.addEventListener('click', () => {
+            // Sync selection to main select before starting
+            if (els.graphIfaceSelect) {
+                els.interfaceSelect.value = els.graphIfaceSelect.value;
+            }
+            startCapture();
+        });
+        els.graphBtnStop.addEventListener('click', stopCapture);
+
+        // Keep graph select in sync with main select
+        els.interfaceSelect.addEventListener('change', () => {
+            if (els.graphIfaceSelect) els.graphIfaceSelect.value = els.interfaceSelect.value;
+        });
+        els.graphIfaceSelect.addEventListener('change', () => {
+            els.interfaceSelect.value = els.graphIfaceSelect.value;
+        });
+    }
+
+    function syncGraphInterfaceSelect() {
+        if (!els.graphIfaceSelect) return;
+        els.graphIfaceSelect.innerHTML = els.interfaceSelect.innerHTML;
+        els.graphIfaceSelect.value = els.interfaceSelect.value;
     }
 
     function clearPackets() {
@@ -237,18 +293,6 @@ const App = (() => {
         View3D.clear();
         Security.clear();
         updateCounts();
-    }
-
-    function initAlertsPanel() {
-        const toggleBtn = document.getElementById('btn-alerts-toggle');
-        const panel = document.getElementById('alerts-panel');
-        const clearBtn = document.getElementById('btn-alerts-clear');
-        toggleBtn.addEventListener('click', () => {
-            panel.classList.toggle('alerts-hidden');
-        });
-        clearBtn.addEventListener('click', () => {
-            Security.clear();
-        });
     }
 
     function uploadPcap(e) {
@@ -303,13 +347,13 @@ const App = (() => {
     function initResizers() {
         setupResizer('resizer-1', 'packet-list-pane', 'packet-detail-pane');
         setupResizer('resizer-2', 'packet-detail-pane', 'hex-view-pane');
-        setupResizer('resizer-3', 'hex-view-pane', 'view3d-pane');
     }
 
     function setupResizer(resizerId, topPaneId, bottomPaneId) {
         const resizer = document.getElementById(resizerId);
         const topPane = document.getElementById(topPaneId);
         const bottomPane = document.getElementById(bottomPaneId);
+        if (!resizer || !topPane || !bottomPane) return;
         let startY, startTopH, startBottomH;
 
         resizer.addEventListener('mousedown', (e) => {

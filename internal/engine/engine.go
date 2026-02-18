@@ -105,12 +105,18 @@ func (e *Engine) StopCapture() {
 		e.mu.Unlock()
 		return
 	}
-	close(e.stopCh)
-	e.liveCapture.Close()
 	e.capturing = false
+	stopCh := e.stopCh
+	lc := e.liveCapture
 	e.mu.Unlock()
 
+	// Broadcast immediately so clients get instant feedback
 	e.broadcast(models.WSMessage{Type: "capture_stopped"})
+
+	// Then clean up — handle.Close() may block briefly until the
+	// pending pcap read returns, but the client already knows we stopped.
+	close(stopCh)
+	lc.Close()
 }
 
 // LoadPcapFile reads a pcap file and streams packets to all clients with pacing.

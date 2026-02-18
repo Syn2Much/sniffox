@@ -1,5 +1,5 @@
 // view3d.js — 3D network graph visualization using Three.js + OrbitControls
-// Lazy-loaded: Three.js scene only initializes when user opens the accordion.
+// Lazy-loaded: Three.js scene only initializes when user navigates to the graph page.
 'use strict';
 
 const View3D = (() => {
@@ -7,32 +7,33 @@ const View3D = (() => {
     let animating = true;
     let expanded = false;
     let initialized = false;
-    let accordionOpen = false;
+    let isDarkTheme = true;
 
     // Packets queued before the scene is ready
     const pendingPackets = [];
 
     // Default camera position for reset
-    const CAM_DEFAULT = { x: 0, y: 120, z: 200 };
+    const CAM_DEFAULT = { x: 60, y: 140, z: 220 };
 
     // Node/edge data
     const nodes = new Map();
     const edges = new Map();
     const particles = [];
-    const MAX_NODES = 50;
-    const MAX_PARTICLES = 300;
-    const NODE_RADIUS = 4;
+    const MAX_NODES = 60;
+    const MAX_PARTICLES = 500;
+    const NODE_RADIUS = 3.5;
 
+    // Brighter, more saturated protocol colors
     const PROTO_COLORS = {
-        tcp:  0x89b4fa,
-        udp:  0x74c7ec,
-        dns:  0x94e2d5,
-        http: 0xa6e3a1,
-        arp:  0xfab387,
-        icmp: 0xf9e2af,
-        ipv6: 0xcba6f7,
+        tcp:  0x7aa2f7,
+        udp:  0x5cb4d6,
+        dns:  0x73daca,
+        http: 0x9ece6a,
+        arp:  0xff9e64,
+        icmp: 0xe0af68,
+        ipv6: 0xbb9af7,
     };
-    const DEFAULT_COLOR = 0xcdd6f4;
+    const DEFAULT_COLOR = 0xc0caf5;
 
     // Filter/visibility state
     const protoVisible = { tcp: true, udp: true, dns: true, http: true, arp: true, icmp: true, ipv6: true, other: true };
@@ -53,85 +54,82 @@ const View3D = (() => {
     const protoStats = {};
     const ipStats = {};
 
-    // Called on DOMContentLoaded — only wires the accordion header, nothing heavy
+    // Track dominant protocol per node for coloring
+    const nodeProtoCount = {};  // ip -> { tcp: N, udp: M, ... }
+
+    // Scene objects for cleanup
+    let gridHelper = null;
+    let pointLight = null;
+
     function init() {
-        const header = document.getElementById('view3d-accordion-header');
-        if (header) {
-            header.classList.add('v3d-header-closed');
-            header.addEventListener('click', (e) => {
-                // Don't toggle if clicking a button inside the header
-                if (e.target.closest('.v3d-hdr-btn')) return;
-                toggleAccordion();
-            });
-        }
+        // Scene will be initialized lazily when graph page becomes visible
     }
 
-    function toggleAccordion() {
-        accordionOpen = !accordionOpen;
-
-        const header = document.getElementById('view3d-accordion-header');
-        const pane = document.getElementById('view3d-pane');
-        const resizer = document.getElementById('resizer-3');
-        const arrow = document.getElementById('v3d-arrow');
-        const hint = document.getElementById('v3d-hint');
-
-        if (header) header.classList.toggle('v3d-header-closed', !accordionOpen);
-        if (pane) pane.classList.toggle('v3d-pane-closed', !accordionOpen);
-        if (resizer) resizer.classList.toggle('v3d-resizer-hidden', !accordionOpen);
-        if (arrow) arrow.innerHTML = accordionOpen ? '&#9660;' : '&#9654;';
-        if (hint) hint.textContent = accordionOpen ? '' : 'Click to open';
-
-        if (accordionOpen && !initialized) {
+    function onPageVisible() {
+        if (!initialized) {
             initScene();
-        }
-        if (accordionOpen) {
-            // Reset flex so the pane gets a fair share of space
-            if (pane) {
-                pane.style.flex = '';
-                pane.style.height = '';
-            }
+        } else {
             setTimeout(updateRendererSize, 50);
         }
     }
 
-    // Heavy Three.js initialization — only runs once when user first opens the accordion
     function initScene() {
         canvas = document.getElementById('view3d-canvas');
         if (!canvas || typeof THREE === 'undefined') return;
         initialized = true;
 
         scene = new THREE.Scene();
+        applySceneBg();
 
-        camera = new THREE.PerspectiveCamera(50, 2, 1, 2000);
+        camera = new THREE.PerspectiveCamera(45, 2, 1, 3000);
         camera.position.set(CAM_DEFAULT.x, CAM_DEFAULT.y, CAM_DEFAULT.z);
 
-        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
         updateRendererSize();
 
         // OrbitControls
         if (THREE.OrbitControls) {
             controls = new THREE.OrbitControls(camera, canvas);
             controls.enableDamping = true;
-            controls.dampingFactor = 0.12;
-            controls.rotateSpeed = 0.8;
-            controls.panSpeed = 0.6;
-            controls.zoomSpeed = 1.2;
+            controls.dampingFactor = 0.08;
+            controls.rotateSpeed = 0.6;
+            controls.panSpeed = 0.5;
+            controls.zoomSpeed = 1.0;
             controls.minDistance = 30;
             controls.maxDistance = 800;
             controls.maxPolarAngle = Math.PI * 0.85;
-            controls.target.set(0, 0, 0);
+            controls.target.set(0, 10, 0);
             controls.update();
         }
 
-        // Lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(50, 100, 50);
+        // Lighting — more dramatic
+        const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+        scene.add(ambient);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(60, 120, 80);
         scene.add(dirLight);
 
+        // Point light at center for glow
+        pointLight = new THREE.PointLight(0x7aa2f7, 0.8, 400);
+        pointLight.position.set(0, 30, 0);
+        scene.add(pointLight);
+
+        // Hemisphere light for ambient color
+        const hemiLight = new THREE.HemisphereLight(0x7aa2f7, 0x1a1a2e, 0.3);
+        scene.add(hemiLight);
+
+        // Fog for depth
+        applyFog();
+
         // Grid floor
-        addGrid(true);
+        addGrid();
+
+        // Center glow marker
+        addCenterGlow();
 
         // Toolbar buttons
         const resetBtn = document.getElementById('btn-3d-reset');
@@ -191,6 +189,40 @@ const View3D = (() => {
         pendingPackets.length = 0;
     }
 
+    function applySceneBg() {
+        if (!scene) return;
+        scene.background = new THREE.Color(isDarkTheme ? 0x000000 : 0xdce0e8);
+    }
+
+    function applyFog() {
+        if (!scene) return;
+        if (isDarkTheme) {
+            scene.fog = new THREE.FogExp2(0x000005, 0.0018);
+        } else {
+            scene.fog = new THREE.FogExp2(0xdce0e8, 0.0012);
+        }
+    }
+
+    function addCenterGlow() {
+        // Soft glow sprite at the center
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 128;
+        glowCanvas.height = 128;
+        const ctx = glowCanvas.getContext('2d');
+        const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gradient.addColorStop(0, 'rgba(122, 162, 247, 0.15)');
+        gradient.addColorStop(0.5, 'rgba(122, 162, 247, 0.04)');
+        gradient.addColorStop(1, 'rgba(122, 162, 247, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 128, 128);
+        const tex = new THREE.CanvasTexture(glowCanvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(150, 150, 1);
+        sprite.position.set(0, 0, 0);
+        scene.add(sprite);
+    }
+
     function initSlider(id, key, min, max) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -230,25 +262,24 @@ const View3D = (() => {
         nodes.forEach((n, ip) => {
             const match = highlightedIP && ip.includes(highlightedIP);
             if (highlightedIP) {
-                n.mesh.material.emissiveIntensity = match ? 0.8 : 0.05;
-                n.mesh.material.opacity = match ? 1.0 : 0.3;
-                n.label.material.opacity = match ? 1.0 : 0.3;
-                if (n.ring) n.ring.material.opacity = match ? 0.3 : 0.02;
+                n.mesh.material.emissiveIntensity = match ? 1.0 : 0.05;
+                n.mesh.material.opacity = match ? 1.0 : 0.2;
+                n.label.material.opacity = match ? 1.0 : 0.2;
+                if (n.ring) n.ring.material.opacity = match ? 0.5 : 0.02;
+                if (n.glow) n.glow.material.opacity = match ? 0.6 : 0.0;
             } else {
-                n.mesh.material.emissiveIntensity = 0.2;
-                n.mesh.material.opacity = 0.9;
+                n.mesh.material.emissiveIntensity = 0.4;
+                n.mesh.material.opacity = 0.95;
                 n.label.material.opacity = 1.0;
-                if (n.ring) n.ring.material.opacity = 0.15;
+                if (n.ring) n.ring.material.opacity = 0.2;
+                if (n.glow) n.glow.material.opacity = 0.3;
             }
         });
     }
 
     function toggleExpand() {
-        if (expanded) {
-            collapseView();
-        } else {
-            expandView();
-        }
+        if (expanded) collapseView();
+        else expandView();
     }
 
     function expandView() {
@@ -295,6 +326,7 @@ const View3D = (() => {
             w = rect.width;
             h = Math.max(60, rect.height - legendH);
         }
+        if (w <= 0 || h <= 0) return;
         canvas.width = w;
         canvas.height = h;
         canvas.style.width = w + 'px';
@@ -307,7 +339,7 @@ const View3D = (() => {
     function resetCamera() {
         if (!controls) return;
         camera.position.set(CAM_DEFAULT.x, CAM_DEFAULT.y, CAM_DEFAULT.z);
-        controls.target.set(0, 0, 0);
+        controls.target.set(0, 10, 0);
         controls.update();
     }
 
@@ -320,7 +352,6 @@ const View3D = (() => {
     // Public addPacket — queues if scene not ready yet
     function addPacket(pkt) {
         if (!initialized) {
-            // Cap queue so we don't eat memory while closed
             if (pendingPackets.length < 2000) pendingPackets.push(pkt);
             return;
         }
@@ -341,6 +372,12 @@ const View3D = (() => {
         ipStats[src] = (ipStats[src] || 0) + 1;
         ipStats[dst] = (ipStats[dst] || 0) + 1;
 
+        // Track per-node protocol distribution
+        if (!nodeProtoCount[src]) nodeProtoCount[src] = {};
+        if (!nodeProtoCount[dst]) nodeProtoCount[dst] = {};
+        nodeProtoCount[src][proto] = (nodeProtoCount[src][proto] || 0) + 1;
+        nodeProtoCount[dst][proto] = (nodeProtoCount[dst][proto] || 0) + 1;
+
         // Visibility check
         const mappedProto = PROTO_COLORS[proto] ? proto : 'other';
         if (protoVisible[mappedProto] === false) return;
@@ -354,53 +391,113 @@ const View3D = (() => {
         srcNode.packetCount++;
         dstNode.packetCount++;
 
+        // Update node color based on dominant protocol
+        updateNodeColor(src, srcNode);
+        updateNodeColor(dst, dstNode);
+
         const srcScale = Math.min(3, 1 + Math.log2(srcNode.packetCount) * 0.3) * settings.nodeScale;
         const dstScale = Math.min(3, 1 + Math.log2(dstNode.packetCount) * 0.3) * settings.nodeScale;
         srcNode.mesh.scale.setScalar(srcScale);
         dstNode.mesh.scale.setScalar(dstScale);
 
-        const edgeKey = src + '->' + dst;
+        const edgeKey = src < dst ? src + '<>' + dst : dst + '<>' + src;
         if (!edges.has(edgeKey)) {
             createEdge(edgeKey, srcNode, dstNode, color, mappedProto);
         }
-        edges.get(edgeKey).count++;
+        const edge = edges.get(edgeKey);
+        edge.count++;
+        // Thicken edge as traffic increases
+        const thickness = Math.min(3, 1 + Math.log2(edge.count) * 0.4);
+        edge.line.material.linewidth = thickness;
 
         spawnParticle(srcNode, dstNode, color);
         updateStatsOverlay();
+    }
+
+    function updateNodeColor(ip, node) {
+        const counts = nodeProtoCount[ip];
+        if (!counts) return;
+        let maxProto = '';
+        let maxCount = 0;
+        for (const [p, c] of Object.entries(counts)) {
+            if (c > maxCount) { maxCount = c; maxProto = p; }
+        }
+        const color = PROTO_COLORS[maxProto] || DEFAULT_COLOR;
+        node.mesh.material.color.setHex(color);
+        node.mesh.material.emissive.setHex(color);
+        if (node.ring) {
+            node.ring.material.color.setHex(color);
+        }
+        if (node.glow) {
+            node.glow.material.color.setHex(color);
+        }
     }
 
     function ensureNode(ip) {
         if (nodes.has(ip) || nodes.size >= MAX_NODES) return;
 
         const idx = nodes.size;
-        const angle = idx * 137.5 * Math.PI / 180;
-        const radius = 20 + Math.sqrt(idx) * 20;
+        // Golden angle spiral layout — more spread out
+        const angle = idx * 137.508 * Math.PI / 180;
+        const radius = 25 + Math.sqrt(idx) * 22;
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
 
-        const geo = new THREE.SphereGeometry(NODE_RADIUS, 16, 12);
+        // Node sphere with higher quality
+        const geo = new THREE.SphereGeometry(NODE_RADIUS, 24, 16);
         const mat = new THREE.MeshPhongMaterial({
-            color: 0x89b4fa, emissive: 0x89b4fa, emissiveIntensity: 0.2,
-            transparent: true, opacity: 0.9,
+            color: DEFAULT_COLOR,
+            emissive: DEFAULT_COLOR,
+            emissiveIntensity: 0.4,
+            shininess: 80,
+            transparent: true,
+            opacity: 0.95,
         });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(x, 0, z);
         scene.add(mesh);
 
+        // IP label
         const label = makeLabel(ip);
-        label.position.set(x, NODE_RADIUS + 6, z);
+        label.position.set(x, NODE_RADIUS + 7, z);
         scene.add(label);
 
-        const ringGeo = new THREE.RingGeometry(NODE_RADIUS + 1, NODE_RADIUS + 2.5, 32);
+        // Animated ring
+        const ringGeo = new THREE.RingGeometry(NODE_RADIUS + 2, NODE_RADIUS + 3.5, 48);
         const ringMat = new THREE.MeshBasicMaterial({
-            color: 0x89b4fa, transparent: true, opacity: 0.15, side: THREE.DoubleSide,
+            color: DEFAULT_COLOR, transparent: true, opacity: 0.2, side: THREE.DoubleSide,
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = -Math.PI / 2;
         ring.position.set(x, -0.5, z);
         scene.add(ring);
 
-        nodes.set(ip, { mesh, label, ring, x, z, packetCount: 0 });
+        // Glow sprite under the node
+        const glow = makeGlowSprite(DEFAULT_COLOR);
+        glow.position.set(x, 0, z);
+        scene.add(glow);
+
+        nodes.set(ip, { mesh, label, ring, glow, x, z, packetCount: 0 });
+    }
+
+    function makeGlowSprite(color) {
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = 64;
+        const ctx = c.getContext('2d');
+        const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+        gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.15)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 64, 64);
+        const tex = new THREE.CanvasTexture(c);
+        const mat = new THREE.SpriteMaterial({
+            map: tex, transparent: true, opacity: 0.3,
+            color: color, depthWrite: false, blending: THREE.AdditiveBlending,
+        });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(20, 20, 1);
+        return sprite;
     }
 
     function makeLabel(text) {
@@ -408,9 +505,16 @@ const View3D = (() => {
         const ctx = c.getContext('2d');
         c.width = 256; c.height = 64;
         ctx.clearRect(0, 0, 256, 64);
-        ctx.font = 'bold 22px monospace';
+
+        // Shadow for readability
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+
+        ctx.font = 'bold 20px monospace';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#cdd6f4';
+        ctx.fillStyle = '#e0e4f0';
         ctx.fillText(text, 128, 38);
         const tex = new THREE.CanvasTexture(c);
         const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
@@ -420,15 +524,24 @@ const View3D = (() => {
     }
 
     function createEdge(key, srcNode, dstNode, color, proto) {
-        const points = [
-            new THREE.Vector3(srcNode.x, 0, srcNode.z),
-            new THREE.Vector3(dstNode.x, 0, dstNode.z),
-        ];
+        // Curved arc edge using QuadraticBezierCurve3
+        const src = new THREE.Vector3(srcNode.x, 0, srcNode.z);
+        const dst = new THREE.Vector3(dstNode.x, 0, dstNode.z);
+        const mid = new THREE.Vector3(
+            (srcNode.x + dstNode.x) / 2,
+            settings.arcHeight * 0.5,
+            (srcNode.z + dstNode.z) / 2
+        );
+
+        const curve = new THREE.QuadraticBezierCurve3(src, mid, dst);
+        const points = curve.getPoints(32);
         const geo = new THREE.BufferGeometry().setFromPoints(points);
-        const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: settings.edgeOpacity });
+        const mat = new THREE.LineBasicMaterial({
+            color, transparent: true, opacity: settings.edgeOpacity,
+        });
         const line = new THREE.Line(geo, mat);
         scene.add(line);
-        edges.set(key, { line, count: 0, proto: proto || 'other' });
+        edges.set(key, { line, count: 0, proto: proto || 'other', srcNode, dstNode });
     }
 
     function spawnParticle(srcNode, dstNode, color) {
@@ -437,18 +550,39 @@ const View3D = (() => {
             scene.remove(old.mesh);
             old.mesh.geometry.dispose();
             old.mesh.material.dispose();
+            if (old.trail) {
+                scene.remove(old.trail);
+                old.trail.geometry.dispose();
+                old.trail.material.dispose();
+            }
         }
-        const geo = new THREE.SphereGeometry(1.2, 8, 6);
-        const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 });
+
+        // Glowing particle sphere
+        const geo = new THREE.SphereGeometry(1.0, 8, 6);
+        const mat = new THREE.MeshBasicMaterial({
+            color, transparent: true, opacity: 1.0,
+        });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(srcNode.x, 0, srcNode.z);
         scene.add(mesh);
+
+        // Trail line
+        const trailPositions = new Float32Array(30 * 3); // 30 segments
+        const trailGeo = new THREE.BufferGeometry();
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+        const trailMat = new THREE.LineBasicMaterial({
+            color, transparent: true, opacity: 0.4,
+        });
+        const trail = new THREE.Line(trailGeo, trailMat);
+        scene.add(trail);
+
         particles.push({
-            mesh,
+            mesh, trail,
             srcX: srcNode.x, srcZ: srcNode.z,
             dstX: dstNode.x, dstZ: dstNode.z,
             t: 0,
-            speed: (0.008 + Math.random() * 0.012) * settings.particleSpeed,
+            speed: (0.006 + Math.random() * 0.010) * settings.particleSpeed,
+            history: [],
         });
     }
 
@@ -458,6 +592,9 @@ const View3D = (() => {
         if (controls) controls.update();
 
         if (animating) {
+            const time = Date.now() * 0.001;
+
+            // Update particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.t += p.speed * settings.particleSpeed;
@@ -465,25 +602,68 @@ const View3D = (() => {
                     scene.remove(p.mesh);
                     p.mesh.geometry.dispose();
                     p.mesh.material.dispose();
+                    if (p.trail) {
+                        scene.remove(p.trail);
+                        p.trail.geometry.dispose();
+                        p.trail.material.dispose();
+                    }
                     particles.splice(i, 1);
                     continue;
                 }
-                const arcHeight = Math.sin(p.t * Math.PI) * settings.arcHeight;
-                p.mesh.position.set(
-                    p.srcX + (p.dstX - p.srcX) * p.t,
-                    arcHeight,
-                    p.srcZ + (p.dstZ - p.srcZ) * p.t,
-                );
-                p.mesh.material.opacity = 1 - p.t * 0.5;
+
+                const arcH = Math.sin(p.t * Math.PI) * settings.arcHeight;
+                const px = p.srcX + (p.dstX - p.srcX) * p.t;
+                const pz = p.srcZ + (p.dstZ - p.srcZ) * p.t;
+                p.mesh.position.set(px, arcH, pz);
+                p.mesh.material.opacity = Math.min(1.0, (1 - p.t) * 2);
+
+                // Pulse size
+                const pulse = 1.0 + Math.sin(p.t * Math.PI * 4) * 0.15;
+                p.mesh.scale.setScalar(pulse);
+
+                // Update trail
+                p.history.push({ x: px, y: arcH, z: pz });
+                if (p.history.length > 30) p.history.shift();
+
+                if (p.trail && p.history.length > 1) {
+                    const positions = p.trail.geometry.attributes.position.array;
+                    for (let j = 0; j < 30; j++) {
+                        const idx = Math.min(j, p.history.length - 1);
+                        const pt = p.history[idx];
+                        positions[j * 3] = pt.x;
+                        positions[j * 3 + 1] = pt.y;
+                        positions[j * 3 + 2] = pt.z;
+                    }
+                    p.trail.geometry.attributes.position.needsUpdate = true;
+                    p.trail.geometry.setDrawRange(0, p.history.length);
+                    p.trail.material.opacity = 0.3 * (1 - p.t);
+                }
             }
 
-            const time = Date.now() * 0.002;
+            // Animate nodes
             nodes.forEach(node => {
+                // Ring pulse
                 if (node.ring) {
-                    node.ring.material.opacity = 0.1 + Math.sin(time) * 0.05;
-                    node.ring.scale.setScalar(1 + Math.sin(time * 1.5) * 0.1);
+                    const phase = time * 1.2;
+                    node.ring.material.opacity = 0.12 + Math.sin(phase) * 0.08;
+                    node.ring.scale.setScalar(1 + Math.sin(phase * 0.8) * 0.15);
+                    node.ring.rotation.z = time * 0.1;
                 }
+                // Glow pulse
+                if (node.glow) {
+                    const phase = time * 0.8;
+                    const glowScale = 18 + Math.sin(phase) * 4;
+                    node.glow.scale.set(glowScale, glowScale, 1);
+                }
+                // Node bob
+                node.mesh.position.y = Math.sin(time * 0.5 + node.x * 0.1) * 1.5;
             });
+
+            // Point light color shift
+            if (pointLight) {
+                const hue = (time * 0.02) % 1;
+                pointLight.color.setHSL(hue * 0.15 + 0.6, 0.6, 0.6);
+            }
         }
 
         updateRendererSize();
@@ -540,10 +720,12 @@ const View3D = (() => {
 
     function clear() {
         pendingPackets.length = 0;
+        Object.keys(nodeProtoCount).forEach(k => delete nodeProtoCount[k]);
         if (!scene) return;
         nodes.forEach(n => {
             scene.remove(n.mesh); scene.remove(n.label);
             if (n.ring) scene.remove(n.ring);
+            if (n.glow) scene.remove(n.glow);
             n.mesh.geometry.dispose(); n.mesh.material.dispose();
         });
         nodes.clear();
@@ -553,6 +735,9 @@ const View3D = (() => {
         edges.clear();
         particles.forEach(p => {
             scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose();
+            if (p.trail) {
+                scene.remove(p.trail); p.trail.geometry.dispose(); p.trail.material.dispose();
+            }
         });
         particles.length = 0;
 
@@ -562,21 +747,24 @@ const View3D = (() => {
         if (el) el.innerHTML = '';
     }
 
-    function addGrid(isDark) {
-        const gridColor = isDark ? 0x313244 : 0xd0d0d0;
-        const gridBg = isDark ? 0x1e1e2e : 0xf0f0f0;
-        const grid = new THREE.GridHelper(400, 40, gridColor, gridBg);
-        grid.position.y = -10;
-        scene.add(grid);
+    function addGrid() {
+        if (gridHelper) scene.remove(gridHelper);
+        const gridColor = isDarkTheme ? 0x111122 : 0xc0c0c0;
+        const gridBg = isDarkTheme ? 0x080810 : 0xe0e0e0;
+        gridHelper = new THREE.GridHelper(500, 50, gridColor, gridBg);
+        gridHelper.position.y = -10;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = isDarkTheme ? 0.4 : 0.6;
+        scene.add(gridHelper);
     }
 
-    function updateTheme(isDark) {
+    function updateTheme(dark) {
+        isDarkTheme = dark;
         if (!scene) return;
-        scene.children.forEach(child => {
-            if (child instanceof THREE.GridHelper) scene.remove(child);
-        });
-        addGrid(isDark);
+        applySceneBg();
+        applyFog();
+        addGrid();
     }
 
-    return { init, addPacket, clear, updateTheme };
+    return { init, addPacket, clear, updateTheme, onPageVisible };
 })();
