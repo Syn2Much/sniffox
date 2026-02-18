@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to TCPDumper are documented here.
+All notable changes to Sniffox are documented here.
 
 ## [0.5.0] - 2026-02-18
 

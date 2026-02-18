@@ -1,4 +1,4 @@
-# TCPDumper
+# Sniffox
 
 A real-time, browser-based network packet analyzer and security operations dashboard built in Go. Capture live traffic or upload PCAPs, inspect every byte with deep protocol dissection, visualize your network in 3D, and detect attacks as they happen — all from a single tab.
 
@@ -71,10 +71,10 @@ Click any packet and hit **Deep Analysis** for a tabbed breakdown:
 sudo apt-get install -y libpcap-dev
 
 # Build
-go build -o tcpdumper .
+go build -o sniffox .
 
 # Run (needs root for capture)
-sudo ./tcpdumper --port 8080
+sudo ./sniffox --port 8080
 ```
 
 Open `http://localhost:8080`.
@@ -93,7 +93,7 @@ Open `http://localhost:8080`.
 ## Project Structure
 
 ```
-tcpdumper/
+sniffox/
 ├── main.go                     # Entry point, HTTP server
 ├── internal/
 │   ├── models/                 # Packet and WebSocket message types

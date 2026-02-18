@@ -7,7 +7,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 
-	"dumptcp/internal/models"
+	"sniffox/internal/models"
 )
 
 func extractLayers(pkt gopacket.Packet) []models.LayerDetail {

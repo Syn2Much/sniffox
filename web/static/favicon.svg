@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Left ear -->
+  <polygon points="8,8 4,36 22,28" fill="#7aa2f7"/>
+  <!-- Right ear -->
+  <polygon points="56,8 60,36 42,28" fill="#7aa2f7"/>
+  <!-- Face -->
+  <ellipse cx="32" cy="38" rx="22" ry="20" fill="#7aa2f7"/>
+  <!-- Inner left ear -->
+  <polygon points="12,16 10,30 20,26" fill="#5cb4d6"/>
+  <!-- Inner right ear -->
+  <polygon points="52,16 54,30 44,26" fill="#5cb4d6"/>
+  <!-- Left eye -->
+  <ellipse cx="23" cy="34" rx="3.5" ry="4" fill="#0a0a0f"/>
+  <!-- Right eye -->
+  <ellipse cx="41" cy="34" rx="3.5" ry="4" fill="#0a0a0f"/>
+  <!-- Eye shine left -->
+  <circle cx="24.5" cy="32.5" r="1.2" fill="#fff"/>
+  <!-- Eye shine right -->
+  <circle cx="42.5" cy="32.5" r="1.2" fill="#fff"/>
+  <!-- Snout -->
+  <ellipse cx="32" cy="44" rx="10" ry="7" fill="#e0e4f0"/>
+  <!-- Nose -->
+  <ellipse cx="32" cy="42" rx="3" ry="2.2" fill="#0a0a0f"/>
+  <!-- Mouth -->
+  <path d="M29,46 Q32,50 35,46" stroke="#0a0a0f" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+</svg>

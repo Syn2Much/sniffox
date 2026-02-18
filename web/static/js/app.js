@@ -66,7 +66,7 @@ const App = (() => {
     const THEME_LABELS = { dark: 'Dark', dim: 'Dim', light: 'Light' };
 
     function loadTheme() {
-        const saved = localStorage.getItem('tcpdumper-theme') || 'dark';
+        const saved = localStorage.getItem('sniffox-theme') || 'dark';
         applyTheme(saved);
     }
 
@@ -75,7 +75,7 @@ const App = (() => {
         const idx = THEMES.indexOf(current);
         const next = THEMES[(idx + 1) % THEMES.length];
         applyTheme(next);
-        localStorage.setItem('tcpdumper-theme', next);
+        localStorage.setItem('sniffox-theme', next);
     }
 
     function applyTheme(theme) {

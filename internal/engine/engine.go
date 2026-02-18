@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/gopacket"
 
-	"dumptcp/internal/capture"
-	"dumptcp/internal/models"
-	"dumptcp/internal/parser"
+	"sniffox/internal/capture"
+	"sniffox/internal/models"
+	"sniffox/internal/parser"
 )
 
 // Client represents a connected WebSocket client that receives packets.

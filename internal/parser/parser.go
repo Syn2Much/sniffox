@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/gopacket"
 
-	"dumptcp/internal/models"
+	"sniffox/internal/models"
 )
 
 // Parse converts a raw gopacket.Packet into a PacketInfo.

@@ -1,4 +1,4 @@
-module dumptcp
+module sniffox
 
 go 1.23.0
 

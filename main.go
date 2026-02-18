@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"dumptcp/internal/engine"
-	"dumptcp/internal/handlers"
+	"sniffox/internal/engine"
+	"sniffox/internal/handlers"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	handlers.RegisterRoutes(mux, eng)
 
 	addr := fmt.Sprintf(":%d", *port)
-	log.Printf("TCPDumper listening on http://localhost%s", addr)
+	log.Printf("Sniffox listening on http://localhost%s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

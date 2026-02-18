@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"dumptcp/internal/engine"
-	"dumptcp/internal/models"
+	"sniffox/internal/engine"
+	"sniffox/internal/models"
 )
 
 const (

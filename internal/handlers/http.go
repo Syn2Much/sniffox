@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"dumptcp/internal/engine"
-	"dumptcp/web"
+	"sniffox/internal/engine"
+	"sniffox/web"
 )
 
 const maxUploadSize = 100 << 20 // 100 MB
@@ -49,7 +49,7 @@ func handleUpload(eng *engine.Engine) http.HandlerFunc {
 
 		// Write to temp file (gopacket/pcap needs a file path)
 		tmpDir := os.TempDir()
-		tmpFile, err := os.CreateTemp(tmpDir, "tcpdumper-*.pcap")
+		tmpFile, err := os.CreateTemp(tmpDir, "sniffox-*.pcap")
 		if err != nil {
 			http.Error(w, "Failed to create temp file", http.StatusInternalServerError)
 			return
