@@ -97,26 +97,25 @@
                         <div class="empty-state">Select a packet to view hex dump</div>
                     </div>
                 </div>
-                <div id="view3d-accordion" class="v3d-accordion v3d-closed">
-                    <div id="view3d-accordion-header" class="v3d-accordion-header">
-                        <span class="v3d-accordion-arrow" id="v3d-arrow">&#9654;</span>
-                        <span class="view3d-title">Network Graph</span>
-                        <span class="v3d-accordion-hint" id="v3d-hint">Click to open</span>
-                        <button id="btn-3d-controls" class="v3d-hdr-btn v3d-hide-closed" title="Toggle controls panel">Controls</button>
-                        <button id="btn-3d-reset" class="v3d-hdr-btn v3d-hide-closed" title="Reset camera">Reset</button>
-                        <button id="btn-3d-toggle" class="v3d-hdr-btn v3d-hide-closed" title="Pause/resume">Pause</button>
-                        <button id="btn-3d-expand" class="v3d-hdr-btn v3d-hide-closed" title="Expand fullscreen">Expand</button>
-                    </div>
-                    <div id="view3d-pane" class="v3d-accordion-body">
-                        <canvas id="view3d-canvas"></canvas>
-                        <div id="view3d-legend">
-                            <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>TCP</span>
-                            <span class="legend-item"><span class="legend-dot" style="background:var(--accent-dim)"></span>UDP</span>
-                            <span class="legend-item"><span class="legend-dot" style="background:var(--teal)"></span>DNS</span>
-                            <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>HTTP</span>
-                            <span class="legend-item"><span class="legend-dot" style="background:var(--peach)"></span>ARP</span>
-                            <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>ICMP</span>
-                        </div>
+                <div id="view3d-accordion-header" class="v3d-accordion-header">
+                    <span class="v3d-accordion-arrow" id="v3d-arrow">&#9654;</span>
+                    <span class="view3d-title">Network Graph</span>
+                    <span class="v3d-accordion-hint" id="v3d-hint">Click to open</span>
+                    <button id="btn-3d-controls" class="v3d-hdr-btn v3d-hide-closed" title="Toggle controls panel">Controls</button>
+                    <button id="btn-3d-reset" class="v3d-hdr-btn v3d-hide-closed" title="Reset camera">Reset</button>
+                    <button id="btn-3d-toggle" class="v3d-hdr-btn v3d-hide-closed" title="Pause/resume">Pause</button>
+                    <button id="btn-3d-expand" class="v3d-hdr-btn v3d-hide-closed" title="Expand fullscreen">Expand</button>
+                </div>
+                <div class="resizer v3d-resizer-hidden" id="resizer-3"></div>
+                <div id="view3d-pane" class="pane v3d-pane-closed">
+                    <canvas id="view3d-canvas"></canvas>
+                    <div id="view3d-legend">
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span>TCP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--accent-dim)"></span>UDP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--teal)"></span>DNS</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>HTTP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--peach)"></span>ARP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>ICMP</span>
                     </div>
                 </div>
             </div>

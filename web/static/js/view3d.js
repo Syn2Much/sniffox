@@ -57,6 +57,7 @@ const View3D = (() => {
     function init() {
         const header = document.getElementById('view3d-accordion-header');
         if (header) {
+            header.classList.add('v3d-header-closed');
             header.addEventListener('click', (e) => {
                 // Don't toggle if clicking a button inside the header
                 if (e.target.closest('.v3d-hdr-btn')) return;
@@ -66,13 +67,17 @@ const View3D = (() => {
     }
 
     function toggleAccordion() {
-        const acc = document.getElementById('view3d-accordion');
-        if (!acc) return;
         accordionOpen = !accordionOpen;
-        acc.classList.toggle('v3d-closed', !accordionOpen);
 
+        const header = document.getElementById('view3d-accordion-header');
+        const pane = document.getElementById('view3d-pane');
+        const resizer = document.getElementById('resizer-3');
         const arrow = document.getElementById('v3d-arrow');
         const hint = document.getElementById('v3d-hint');
+
+        if (header) header.classList.toggle('v3d-header-closed', !accordionOpen);
+        if (pane) pane.classList.toggle('v3d-pane-closed', !accordionOpen);
+        if (resizer) resizer.classList.toggle('v3d-resizer-hidden', !accordionOpen);
         if (arrow) arrow.innerHTML = accordionOpen ? '&#9660;' : '&#9654;';
         if (hint) hint.textContent = accordionOpen ? '' : 'Click to open';
 
@@ -80,6 +85,11 @@ const View3D = (() => {
             initScene();
         }
         if (accordionOpen) {
+            // Reset flex so the pane gets a fair share of space
+            if (pane) {
+                pane.style.flex = '';
+                pane.style.height = '';
+            }
             setTimeout(updateRendererSize, 50);
         }
     }
