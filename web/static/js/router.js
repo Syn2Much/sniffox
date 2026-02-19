@@ -1,4 +1,4 @@
-// router.js — Hash-based SPA router for page navigation
+// router.js — Hash-based SPA router with smooth page transitions
 'use strict';
 
 const Router = (() => {
@@ -29,9 +29,22 @@ const Router = (() => {
     }
 
     function applyRoute() {
-        // Toggle page visibility
+        // Toggle page visibility with transition
         document.querySelectorAll('.page').forEach(page => {
-            page.classList.toggle('page-active', page.dataset.page === currentRoute);
+            const isTarget = page.dataset.page === currentRoute;
+            if (isTarget) {
+                // Show the page, then animate in
+                page.classList.add('page-active');
+                // Force reflow then animate
+                requestAnimationFrame(() => {
+                    page.style.opacity = '1';
+                    page.style.transform = 'translateY(0)';
+                });
+            } else {
+                page.style.opacity = '';
+                page.style.transform = '';
+                page.classList.remove('page-active');
+            }
         });
         // Toggle nav active state
         document.querySelectorAll('.nav-link').forEach(link => {

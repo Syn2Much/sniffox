@@ -125,5 +125,9 @@ const Flows = (() => {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    return { init, update, setVisible, setSort, clear };
+    function count() {
+        return flowMap.size;
+    }
+
+    return { init, update, setVisible, setSort, clear, count };
 })();

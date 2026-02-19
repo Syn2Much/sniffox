@@ -1,10 +1,17 @@
 // streams.js — TCP stream viewer: "Follow TCP Stream" dialog
+// ASCII view is capped for display safety; Hex and Raw are download-only.
 'use strict';
 
 const Streams = (() => {
     let overlay = null;
     let contentEl = null;
-    let viewMode = 'ascii'; // ascii, hex, raw
+
+    // Max bytes to render as ASCII in the DOM to avoid browser freeze
+    const MAX_DISPLAY_BYTES = 64 * 1024; // 64 KB
+
+    // Store decoded bytes for downloads
+    let lastClientBytes = '';
+    let lastServerBytes = '';
 
     function init() {
         overlay = document.getElementById('stream-overlay');
@@ -15,15 +22,11 @@ const Streams = (() => {
             closeBtn.addEventListener('click', close);
         }
 
-        document.querySelectorAll('.stream-view-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                viewMode = btn.dataset.mode;
-                document.querySelectorAll('.stream-view-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                // Re-render with current data
-                if (overlay._lastData) renderData(overlay._lastData);
-            });
-        });
+        // Download buttons
+        const dlHex = document.getElementById('stream-dl-hex');
+        const dlRaw = document.getElementById('stream-dl-raw');
+        if (dlHex) dlHex.addEventListener('click', downloadHex);
+        if (dlRaw) dlRaw.addEventListener('click', downloadRaw);
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && overlay && overlay.classList.contains('stream-visible')) {
@@ -37,6 +40,8 @@ const Streams = (() => {
     function open(streamId) {
         if (!overlay) return;
         overlay.classList.add('stream-visible');
+        lastClientBytes = '';
+        lastServerBytes = '';
         if (contentEl) contentEl.innerHTML = '<div class="stream-loading">Loading stream data...</div>';
 
         // Request stream data from server
@@ -87,24 +92,24 @@ const Streams = (() => {
             html += '</div>';
         }
 
-        // Decode base64 data
-        const clientBytes = data.clientData ? atob(data.clientData) : '';
-        const serverBytes = data.serverData ? atob(data.serverData) : '';
+        // Decode base64 data and store for downloads
+        lastClientBytes = data.clientData ? atob(data.clientData) : '';
+        lastServerBytes = data.serverData ? atob(data.serverData) : '';
 
         html += '<div class="stream-data-section">';
-        if (clientBytes.length > 0) {
+        if (lastClientBytes.length > 0) {
             html += '<div class="stream-direction stream-client">';
-            html += '<div class="stream-direction-label">Client Data (' + clientBytes.length + ' bytes)</div>';
-            html += '<pre class="stream-data-pre stream-client-data">' + formatData(clientBytes) + '</pre>';
+            html += '<div class="stream-direction-label">Client Data (' + formatSize(lastClientBytes.length) + ')</div>';
+            html += '<pre class="stream-data-pre stream-client-data">' + formatAsciiSafe(lastClientBytes) + '</pre>';
             html += '</div>';
         }
-        if (serverBytes.length > 0) {
+        if (lastServerBytes.length > 0) {
             html += '<div class="stream-direction stream-server">';
-            html += '<div class="stream-direction-label">Server Data (' + serverBytes.length + ' bytes)</div>';
-            html += '<pre class="stream-data-pre stream-server-data">' + formatData(serverBytes) + '</pre>';
+            html += '<div class="stream-direction-label">Server Data (' + formatSize(lastServerBytes.length) + ')</div>';
+            html += '<pre class="stream-data-pre stream-server-data">' + formatAsciiSafe(lastServerBytes) + '</pre>';
             html += '</div>';
         }
-        if (clientBytes.length === 0 && serverBytes.length === 0) {
+        if (lastClientBytes.length === 0 && lastServerBytes.length === 0) {
             html += '<div class="stream-empty">No reassembled data available yet</div>';
         }
         html += '</div>';
@@ -112,42 +117,77 @@ const Streams = (() => {
         contentEl.innerHTML = html;
     }
 
-    function formatData(str) {
-        switch (viewMode) {
-            case 'hex':
-                return formatHex(str);
-            case 'raw':
-                return esc(str);
-            case 'ascii':
-            default:
-                return formatAscii(str);
-        }
-    }
-
-    function formatAscii(str) {
+    // ASCII view with a hard cap to avoid DOM explosion
+    function formatAsciiSafe(str) {
+        const limit = Math.min(str.length, MAX_DISPLAY_BYTES);
         let result = '';
-        for (let i = 0; i < str.length; i++) {
+        for (let i = 0; i < limit; i++) {
             const c = str.charCodeAt(i);
             if (c >= 32 && c < 127 || c === 10 || c === 13 || c === 9) {
                 result += esc(str[i]);
             } else {
-                result += '<span class="stream-nonprint">.</span>';
+                result += '.';
             }
+        }
+        if (str.length > MAX_DISPLAY_BYTES) {
+            result += '\n\n--- Truncated: showing ' + formatSize(MAX_DISPLAY_BYTES) + ' of ' + formatSize(str.length) + ' ---\n';
+            result += '--- Use "Save Hex" or "Save Raw" to download the full stream ---';
         }
         return result;
     }
 
-    function formatHex(str) {
+    // --- Downloads ---
+
+    function downloadHex() {
+        if (!lastClientBytes && !lastServerBytes) {
+            App.showToast('No stream data to download', 'error');
+            return;
+        }
+        let text = '';
+        if (lastClientBytes.length > 0) {
+            text += '=== CLIENT DATA (' + lastClientBytes.length + ' bytes) ===\n';
+            text += buildHexDump(lastClientBytes);
+            text += '\n';
+        }
+        if (lastServerBytes.length > 0) {
+            text += '=== SERVER DATA (' + lastServerBytes.length + ' bytes) ===\n';
+            text += buildHexDump(lastServerBytes);
+        }
+        downloadFile('stream.hex', text, 'text/plain');
+        App.showToast('Hex dump downloaded', 'success');
+    }
+
+    function downloadRaw() {
+        if (!lastClientBytes && !lastServerBytes) {
+            App.showToast('No stream data to download', 'error');
+            return;
+        }
+        // Combine client + server into a single binary blob
+        const combined = lastClientBytes + lastServerBytes;
+        const bytes = new Uint8Array(combined.length);
+        for (let i = 0; i < combined.length; i++) {
+            bytes[i] = combined.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'application/octet-stream' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'stream.bin';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        App.showToast('Raw stream downloaded', 'success');
+    }
+
+    function buildHexDump(str) {
         let result = '';
         for (let offset = 0; offset < str.length; offset += 16) {
             // Offset
-            result += '<span class="hex-offset">' + offset.toString(16).padStart(4, '0') + '</span>  ';
+            result += offset.toString(16).padStart(8, '0') + '  ';
             // Hex bytes
             let ascii = '';
             for (let i = 0; i < 16; i++) {
                 if (offset + i < str.length) {
                     const b = str.charCodeAt(offset + i);
-                    result += '<span class="hex-bytes">' + b.toString(16).padStart(2, '0') + '</span> ';
+                    result += b.toString(16).padStart(2, '0') + ' ';
                     ascii += (b >= 32 && b < 127) ? str[offset + i] : '.';
                 } else {
                     result += '   ';
@@ -155,9 +195,24 @@ const Streams = (() => {
                 }
                 if (i === 7) result += ' ';
             }
-            result += ' <span class="hex-ascii">|' + esc(ascii) + '|</span>\n';
+            result += ' |' + ascii + '|\n';
         }
         return result;
+    }
+
+    function downloadFile(filename, text, mime) {
+        const blob = new Blob([text], { type: mime || 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' bytes';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
     function close() {
@@ -165,6 +220,8 @@ const Streams = (() => {
             overlay.classList.remove('stream-visible');
             overlay._lastData = null;
         }
+        lastClientBytes = '';
+        lastServerBytes = '';
     }
 
     function esc(s) {

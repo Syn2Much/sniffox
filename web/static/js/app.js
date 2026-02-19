@@ -1,4 +1,4 @@
-// app.js — WebSocket connection, message dispatch, toolbar controls
+// app.js — WebSocket connection, message dispatch, toolbar controls, keyboard shortcuts
 'use strict';
 
 const App = (() => {
@@ -16,6 +16,15 @@ const App = (() => {
     // Current capture view: 'packets' or 'flows'
     let captureView = 'packets';
 
+    // Track capture state for welcome/live display
+    let isCapturing = false;
+    let hasPackets = false;
+
+    // Packet rate tracking
+    let pktRateCount = 0;
+    let pktRateInterval = null;
+    let currentRate = 0;
+
     function init() {
         els.interfaceSelect = document.getElementById('interface-select');
         els.bpfFilter = document.getElementById('bpf-filter');
@@ -32,6 +41,12 @@ const App = (() => {
         els.packetCount = document.getElementById('packet-count');
         els.displayedCount = document.getElementById('displayed-count');
         els.captureInfo = document.getElementById('capture-info');
+        els.welcomeState = document.getElementById('welcome-state');
+        els.captureTabs = document.getElementById('capture-tabs');
+        els.liveIndicator = document.getElementById('live-indicator');
+        els.statusRate = document.getElementById('status-rate');
+        els.tabPktCount = document.getElementById('tab-pkt-count');
+        els.tabFlowCount = document.getElementById('tab-flow-count');
 
         els.btnStart.addEventListener('click', startCapture);
         els.btnStop.addEventListener('click', stopCapture);
@@ -52,7 +67,11 @@ const App = (() => {
         initResizers();
         initGraphControls();
         initCaptureViewTabs();
+        initKeyboardShortcuts();
         loadTheme();
+
+        // Packet rate display
+        pktRateInterval = setInterval(updateRate, 1000);
 
         // Initialize router last — it triggers page navigation
         Router.init();
@@ -102,6 +121,26 @@ const App = (() => {
         applyDisplayFilter();
     }
 
+    // --- Welcome/Capture State Management ---
+    function showCaptureUI() {
+        if (hasPackets) return;
+        hasPackets = true;
+        if (els.welcomeState) els.welcomeState.classList.add('hidden');
+        if (els.captureTabs) els.captureTabs.style.display = 'flex';
+        const panes = document.getElementById('panes');
+        if (panes) panes.style.display = 'flex';
+    }
+
+    function showWelcomeState() {
+        hasPackets = false;
+        if (els.welcomeState) els.welcomeState.classList.remove('hidden');
+        if (els.captureTabs) els.captureTabs.style.display = 'none';
+        const panes = document.getElementById('panes');
+        if (panes) panes.style.display = 'none';
+        const flowWrap = document.getElementById('flow-table-wrap');
+        if (flowWrap) flowWrap.style.display = 'none';
+    }
+
     // --- Capture View Tabs (Packets / Flows) ---
     function initCaptureViewTabs() {
         document.querySelectorAll('.capture-view-tab').forEach(tab => {
@@ -123,6 +162,65 @@ const App = (() => {
                     Flows.setVisible(false);
                 }
             });
+        });
+    }
+
+    // --- Keyboard Shortcuts ---
+    function initKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+F or Cmd+F -> focus display filter
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                // Only intercept on capture page
+                if (Router.current() === 'capture') {
+                    e.preventDefault();
+                    if (els.displayFilter) {
+                        els.displayFilter.focus();
+                        els.displayFilter.select();
+                    }
+                }
+            }
+
+            // Escape -> dismiss overlays and clear filter focus
+            if (e.key === 'Escape') {
+                // Close stream viewer if open
+                const streamOverlay = document.getElementById('stream-overlay');
+                if (streamOverlay && streamOverlay.classList.contains('stream-visible')) {
+                    if (typeof Streams !== 'undefined') Streams.close();
+                    return;
+                }
+                // Close 3D expand if open
+                const v3dOverlay = document.getElementById('v3d-expand-overlay');
+                if (v3dOverlay && v3dOverlay.classList.contains('v3d-expanded')) {
+                    v3dOverlay.classList.remove('v3d-expanded');
+                    return;
+                }
+                // Blur active filter
+                if (document.activeElement === els.displayFilter || document.activeElement === els.bpfFilter) {
+                    document.activeElement.blur();
+                }
+            }
+
+            // Arrow keys for packet navigation (only when not in an input)
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                const active = document.activeElement;
+                const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
+                if (!isInput && Router.current() === 'capture') {
+                    e.preventDefault();
+                    PacketList.navigateByKey(e.key === 'ArrowUp' ? -1 : 1);
+                }
+            }
+
+            // Number keys 1-4 for quick page navigation (when not in input)
+            if (e.key >= '1' && e.key <= '4' && e.altKey) {
+                const active = document.activeElement;
+                const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
+                if (!isInput) {
+                    e.preventDefault();
+                    const routes = ['capture', 'graph', 'security', 'analysis'];
+                    const idx = parseInt(e.key) - 1;
+                    if (routes[idx]) Router.navigate(routes[idx]);
+                }
+            }
         });
     }
 
@@ -169,10 +267,16 @@ const App = (() => {
     function flushMsgQueue() {
         msgRafId = null;
         const batch = msgQueue.splice(0, MSG_BATCH_SIZE);
+
+        if (batch.length > 0 && !hasPackets) {
+            showCaptureUI();
+        }
+
         for (const pkt of batch) {
             PacketList.addPacket(pkt);
             View3D.addPacket(pkt);
             Security.analyze(pkt);
+            pktRateCount++;
         }
         updateCounts();
 
@@ -201,12 +305,14 @@ const App = (() => {
                 break;
             case 'flow_update':
                 Flows.update(msg.payload);
+                updateFlowCount();
                 break;
             case 'stream_data':
                 Streams.handleStreamData(msg.payload);
                 break;
             case 'flows':
                 Flows.update(msg.payload);
+                updateFlowCount();
                 break;
         }
     }
@@ -277,6 +383,7 @@ const App = (() => {
     }
 
     function setCaptureState(capturing, info) {
+        isCapturing = capturing;
         els.btnStart.disabled = capturing;
         els.btnStop.disabled = !capturing;
         els.interfaceSelect.disabled = capturing;
@@ -285,9 +392,14 @@ const App = (() => {
         if (els.graphBtnStart) els.graphBtnStart.disabled = capturing;
         if (els.graphBtnStop) els.graphBtnStop.disabled = !capturing;
         if (els.graphIfaceSelect) els.graphIfaceSelect.disabled = capturing;
+        // Live indicator
+        if (els.liveIndicator) {
+            els.liveIndicator.classList.toggle('active', capturing);
+        }
         if (capturing && info) {
-            els.captureInfo.textContent = `Capturing on ${info.interfaceName || ''}`;
-        } else {
+            els.captureInfo.textContent = 'Capturing on ' + (info.interfaceName || '');
+            showToast('Capture started on ' + (info.interfaceName || ''), 'success');
+        } else if (!capturing) {
             els.captureInfo.textContent = 'Capture stopped';
         }
     }
@@ -332,6 +444,9 @@ const App = (() => {
         View3D.clear();
         Security.clear();
         Flows.clear();
+        showWelcomeState();
+        pktRateCount = 0;
+        currentRate = 0;
         updateCounts();
     }
 
@@ -341,12 +456,13 @@ const App = (() => {
         const formData = new FormData();
         formData.append('file', file);
         clearPackets();
-        els.captureInfo.textContent = `Loading ${file.name}...`;
+        els.captureInfo.textContent = 'Loading ' + file.name + '...';
 
         fetch('/api/upload', { method: 'POST', body: formData })
             .then(r => {
                 if (!r.ok) return r.text().then(t => { throw new Error(t); });
-                els.captureInfo.textContent = `Loaded ${file.name}`;
+                els.captureInfo.textContent = 'Loaded ' + file.name;
+                showToast('Loaded ' + file.name, 'success');
             })
             .catch(err => {
                 showToast('Upload failed: ' + err.message, 'error');
@@ -358,14 +474,46 @@ const App = (() => {
     function applyDisplayFilter() {
         const filterText = els.displayFilter.value.trim();
         PacketList.applyFilter(filterText);
+        // Visual feedback on filter input
+        els.displayFilter.classList.remove('filter-error', 'filter-active');
+        if (filterText) {
+            els.displayFilter.classList.add('filter-active');
+        }
         updateCounts();
     }
 
     function updateCounts() {
-        els.packetCount.textContent = PacketList.totalCount();
-        els.displayedCount.textContent = PacketList.displayedCount();
+        const total = PacketList.totalCount();
+        const displayed = PacketList.displayedCount();
+        els.packetCount.textContent = total;
+        els.displayedCount.textContent = displayed;
         const alertTotal = document.getElementById('alert-total');
         if (alertTotal) alertTotal.textContent = document.getElementById('alert-badge').textContent || '0';
+        // Update tab counts
+        if (els.tabPktCount) els.tabPktCount.textContent = formatCompact(displayed);
+    }
+
+    function updateFlowCount() {
+        if (els.tabFlowCount && typeof Flows !== 'undefined' && Flows.count) {
+            els.tabFlowCount.textContent = formatCompact(Flows.count());
+        }
+    }
+
+    function updateRate() {
+        currentRate = pktRateCount;
+        pktRateCount = 0;
+        if (els.statusRate && isCapturing) {
+            els.statusRate.textContent = currentRate + ' pkt/s';
+        } else if (els.statusRate) {
+            els.statusRate.textContent = '';
+        }
+    }
+
+    function formatCompact(n) {
+        if (n < 1000) return String(n);
+        if (n < 10000) return (n / 1000).toFixed(1) + 'K';
+        if (n < 1000000) return Math.round(n / 1000) + 'K';
+        return (n / 1000000).toFixed(1) + 'M';
     }
 
     function updateStats(stats) {
@@ -377,10 +525,21 @@ const App = (() => {
     function showToast(message, type) {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = `toast ${type || 'info'}`;
+        toast.className = 'toast ' + (type || 'info');
         toast.textContent = message;
+        // Click to dismiss
+        toast.addEventListener('click', () => {
+            toast.classList.add('toast-exit');
+            setTimeout(() => toast.remove(), 250);
+        });
         container.appendChild(toast);
-        setTimeout(() => toast.remove(), 5000);
+        // Auto-dismiss with exit animation
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.add('toast-exit');
+                setTimeout(() => toast.remove(), 250);
+            }
+        }, 4500);
     }
 
     // --- Resizers ---

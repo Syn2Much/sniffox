@@ -2,6 +2,38 @@
 
 All notable changes to Sniffox are documented here.
 
+## [0.9.0] - 2026-02-19
+
+### Added
+- **Welcome onboarding state** — capture page shows a guided welcome screen with SVG radar icon, 3-step instructions, and keyboard shortcut hints when no packets are loaded; auto-transitions to capture view on first packet
+- **Keyboard shortcuts**
+  - `Ctrl+F` / `Cmd+F` to focus the display filter input
+  - `Arrow Up/Down` to navigate packets in the packet list with auto-scroll
+  - `Alt+1/2/3/4` for quick page navigation (Capture/Graph/Security/Analysis)
+  - `Escape` to dismiss stream viewer, 3D expand overlay, or blur filter
+- **Live capture indicator** — pulsing red "LIVE" badge in toolbar during active capture
+- **Packet rate display** in status bar (e.g. "142 pkt/s") during capture
+- **Tab count badges** — Packets and Flows tabs show live counts (e.g. "Packets 1.2K")
+- **"Deep Analysis" in context menu** — right-click a packet row to open deep analysis directly
+- **Stream download buttons** — "Save Hex" and "Save Raw" buttons replace in-browser hex/raw rendering to prevent crashes on large streams
+
+### Changed
+- **Navigation bar redesigned** — pill-shaped active states with background fill and glow instead of underlines; better spacing and hover effects; taller navbar (42px)
+- **Page transitions** — smooth fade + slide animation when switching between pages
+- **Toolbar reorganized** — controls grouped into logical sections (capture, filtering, file); BPF filter placeholder clarified to "Capture filter (BPF)"; display filter placeholder made more descriptive
+- **Stream viewer** — ASCII view capped at 64KB for display safety with truncation message; non-printable chars render as plain `.` instead of `<span>` elements to avoid DOM explosion on large streams
+- **Toasts redesigned** — slide in from right, click to dismiss, exit animation, backdrop blur; added "success" toast type (green); shown on capture start and PCAP load
+- **Context menu improved** — scale-in animation, backdrop blur, viewport edge clamping, larger shadow
+- **Empty states** now include icons above text
+- **Security dashboard cards** — subtle hover effect with shadow and border highlight
+- **Alert badge** has pop-in animation
+
+### Fixed
+- Large TCP streams (hex/raw view) no longer crash the browser — replaced DOM rendering with file download
+- Context menu no longer clips off-screen on viewport edges
+- Filter input shows green border when active filter applied
+- Status bar connection indicator has glow when connected, blink animation when connecting
+
 ## [0.8.0] - 2026-02-18
 
 ### Added

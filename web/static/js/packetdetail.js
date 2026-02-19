@@ -97,7 +97,7 @@ const PacketDetail = (() => {
 
     function clear() {
         if (container) {
-            container.innerHTML = '<div class="empty-state">Select a packet to view details</div>';
+            container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">&#128269;</span>Select a packet to view details</div>';
         }
     }
 

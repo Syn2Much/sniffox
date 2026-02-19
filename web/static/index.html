@@ -39,67 +39,111 @@
         <!-- ==================== CAPTURE PAGE ==================== -->
         <div class="page page-active" data-page="capture">
             <div id="toolbar">
-                <select id="interface-select">
-                    <option value="">-- Select Interface --</option>
-                </select>
-                <input id="bpf-filter" type="text" placeholder="BPF filter (e.g. tcp port 80)">
-                <button id="btn-start">&#9654; Start</button>
-                <button id="btn-stop" disabled>&#9632; Stop</button>
+                <div class="toolbar-group">
+                    <select id="interface-select">
+                        <option value="">-- Select Interface --</option>
+                    </select>
+                    <input id="bpf-filter" type="text" placeholder="Capture filter (BPF)">
+                    <button id="btn-start">&#9654; Start</button>
+                    <button id="btn-stop" disabled>&#9632; Stop</button>
+                    <div class="live-indicator" id="live-indicator">
+                        <span class="live-dot"></span>LIVE
+                    </div>
+                </div>
                 <div class="toolbar-sep"></div>
-                <select id="filter-preset">
-                    <option value="">Preset Filters</option>
-                    <optgroup label="Direction">
-                        <option value="inbound">Inbound</option>
-                        <option value="outbound">Outbound</option>
-                        <option value="local">Local Only</option>
-                        <option value="external">External</option>
-                        <option value="broadcast">Broadcast/Multicast</option>
-                        <option value="unicast">Unicast</option>
-                    </optgroup>
-                    <optgroup label="Protocol">
-                        <option value="tcp">TCP</option>
-                        <option value="udp">UDP</option>
-                        <option value="dns">DNS</option>
-                        <option value="http">HTTP</option>
-                        <option value="arp">ARP</option>
-                        <option value="icmp">ICMP</option>
-                        <option value="ipv6">IPv6</option>
-                        <option value="tls">TLS</option>
-                        <option value="dhcp">DHCP</option>
-                        <option value="ntp">NTP</option>
-                        <option value="icmpv6">ICMPv6</option>
-                    </optgroup>
-                    <optgroup label="Combined">
-                        <option value="tcp && !dns">TCP (no DNS)</option>
-                        <option value="!arp">No ARP</option>
-                        <option value="outbound && tcp">Outbound TCP</option>
-                        <option value="inbound && !arp">Inbound (no ARP)</option>
-                        <option value="external && dns">External DNS</option>
-                        <option value="tls && outbound">Outbound TLS</option>
-                    </optgroup>
-                    <optgroup label="Port">
-                        <option value="port=80">Port 80</option>
-                        <option value="port=443">Port 443</option>
-                        <option value="port=53">Port 53 (DNS)</option>
-                        <option value="port=22">Port 22 (SSH)</option>
-                    </optgroup>
-                </select>
-                <input id="display-filter" type="text" placeholder="Filter: tcp, tls, flow==1, stream==1, tls.sni==example.com...">
+                <div class="toolbar-group">
+                    <select id="filter-preset">
+                        <option value="">Presets</option>
+                        <optgroup label="Direction">
+                            <option value="inbound">Inbound</option>
+                            <option value="outbound">Outbound</option>
+                            <option value="local">Local Only</option>
+                            <option value="external">External</option>
+                            <option value="broadcast">Broadcast/Multicast</option>
+                            <option value="unicast">Unicast</option>
+                        </optgroup>
+                        <optgroup label="Protocol">
+                            <option value="tcp">TCP</option>
+                            <option value="udp">UDP</option>
+                            <option value="dns">DNS</option>
+                            <option value="http">HTTP</option>
+                            <option value="arp">ARP</option>
+                            <option value="icmp">ICMP</option>
+                            <option value="ipv6">IPv6</option>
+                            <option value="tls">TLS</option>
+                            <option value="dhcp">DHCP</option>
+                            <option value="ntp">NTP</option>
+                            <option value="icmpv6">ICMPv6</option>
+                        </optgroup>
+                        <optgroup label="Combined">
+                            <option value="tcp && !dns">TCP (no DNS)</option>
+                            <option value="!arp">No ARP</option>
+                            <option value="outbound && tcp">Outbound TCP</option>
+                            <option value="inbound && !arp">Inbound (no ARP)</option>
+                            <option value="external && dns">External DNS</option>
+                            <option value="tls && outbound">Outbound TLS</option>
+                        </optgroup>
+                        <optgroup label="Port">
+                            <option value="port=80">Port 80</option>
+                            <option value="port=443">Port 443</option>
+                            <option value="port=53">Port 53 (DNS)</option>
+                            <option value="port=22">Port 22 (SSH)</option>
+                        </optgroup>
+                    </select>
+                    <input id="display-filter" type="text" placeholder="Display filter (e.g. tcp, ip.src==10.0.0.1, flow==1)">
+                </div>
                 <div class="toolbar-sep"></div>
-                <button id="upload-btn">
-                    Open PCAP
-                    <input type="file" id="pcap-file" accept=".pcap,.pcapng,.cap">
-                </button>
-                <button id="btn-clear">Clear</button>
+                <div class="toolbar-group">
+                    <button id="upload-btn">
+                        Open PCAP
+                        <input type="file" id="pcap-file" accept=".pcap,.pcapng,.cap">
+                    </button>
+                    <button id="btn-clear">Clear</button>
+                </div>
             </div>
 
             <div id="capture-area">
-                <div class="capture-view-tabs">
-                    <button class="capture-view-tab active" data-view="packets">Packets</button>
-                    <button class="capture-view-tab" data-view="flows">Flows</button>
+                <!-- Welcome state: shown when no packets -->
+                <div class="welcome-state" id="welcome-state">
+                    <svg class="welcome-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="2" opacity="0.3"/>
+                        <circle cx="32" cy="32" r="18" stroke="currentColor" stroke-width="1.5" opacity="0.2"/>
+                        <circle cx="32" cy="32" r="8" stroke="currentColor" stroke-width="2" opacity="0.5"/>
+                        <circle cx="32" cy="32" r="3" fill="currentColor" opacity="0.8"/>
+                        <line x1="32" y1="4" x2="32" y2="14" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+                        <line x1="32" y1="50" x2="32" y2="60" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+                        <line x1="4" y1="32" x2="14" y2="32" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+                        <line x1="50" y1="32" x2="60" y2="32" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+                    </svg>
+                    <div class="welcome-title">Ready to capture</div>
+                    <div class="welcome-subtitle">Select a network interface and click Start to begin capturing packets, or open a PCAP file to analyze.</div>
+                    <div class="welcome-steps">
+                        <div class="welcome-step">
+                            <div class="welcome-step-num">1</div>
+                            <div class="welcome-step-text">Select an interface</div>
+                        </div>
+                        <div class="welcome-step">
+                            <div class="welcome-step-num">2</div>
+                            <div class="welcome-step-text">Click Start to capture</div>
+                        </div>
+                        <div class="welcome-step">
+                            <div class="welcome-step-num">3</div>
+                            <div class="welcome-step-text">Analyze packets live</div>
+                        </div>
+                    </div>
+                    <div class="welcome-shortcuts">
+                        <div class="welcome-shortcut"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">F</kbd> Focus filter</div>
+                        <div class="welcome-shortcut"><kbd class="kbd">&uarr;</kbd><kbd class="kbd">&darr;</kbd> Navigate packets</div>
+                        <div class="welcome-shortcut"><kbd class="kbd">Esc</kbd> Dismiss overlays</div>
+                    </div>
                 </div>
 
-                <div id="panes">
+                <div class="capture-view-tabs" id="capture-tabs" style="display:none">
+                    <button class="capture-view-tab active" data-view="packets">Packets <span class="tab-count" id="tab-pkt-count">0</span></button>
+                    <button class="capture-view-tab" data-view="flows">Flows <span class="tab-count" id="tab-flow-count">0</span></button>
+                </div>
+
+                <div id="panes" style="display:none">
                     <div id="packet-list-pane" class="pane">
                         <table id="packet-table">
                             <thead>
@@ -119,13 +163,13 @@
                     <div class="resizer" id="resizer-1"></div>
                     <div id="packet-detail-pane" class="pane">
                         <div class="detail-tree" id="detail-tree">
-                            <div class="empty-state">Select a packet to view details</div>
+                            <div class="empty-state"><span class="empty-state-icon">&#128269;</span>Select a packet to view details</div>
                         </div>
                     </div>
                     <div class="resizer" id="resizer-2"></div>
                     <div id="hex-view-pane" class="pane">
                         <div id="hex-content">
-                            <div class="empty-state">Select a packet to view hex dump</div>
+                            <div class="empty-state"><span class="empty-state-icon">&#128290;</span>Select a packet to view hex dump</div>
                         </div>
                     </div>
                 </div>
@@ -148,7 +192,7 @@
                                 </tr>
                             </thead>
                             <tbody id="flow-table-body">
-                                <tr><td colspan="9" class="flow-empty">No flows detected — start a capture to see connections</td></tr>
+                                <tr><td colspan="9" class="flow-empty">No flows detected -- start a capture to see connections</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -411,9 +455,10 @@
         <div id="status-bar">
             <div class="status-left">
                 <span><span id="connection-indicator" class="disconnected"></span><span id="connection-status">Disconnected</span></span>
-                <span>Packets: <span id="packet-count">0</span></span>
-                <span>Displayed: <span id="displayed-count">0</span></span>
-                <span>Alerts: <span id="alert-total">0</span></span>
+                <span>Packets: <span id="packet-count" class="status-value">0</span></span>
+                <span>Displayed: <span id="displayed-count" class="status-value">0</span></span>
+                <span>Alerts: <span id="alert-total" class="status-value">0</span></span>
+                <span id="status-rate" class="status-rate"></span>
             </div>
             <div class="status-right">
                 <span id="capture-info"></span>
@@ -441,8 +486,8 @@
                 <span class="stream-title">Follow TCP Stream</span>
                 <div class="stream-view-btns">
                     <button class="stream-view-btn active" data-mode="ascii">ASCII</button>
-                    <button class="stream-view-btn" data-mode="hex">Hex</button>
-                    <button class="stream-view-btn" data-mode="raw">Raw</button>
+                    <button class="stream-dl-btn" id="stream-dl-hex" title="Download as hex dump">Save Hex</button>
+                    <button class="stream-dl-btn" id="stream-dl-raw" title="Download raw bytes">Save Raw</button>
                 </div>
                 <button id="stream-close-btn" class="stream-close-btn">&times;</button>
             </div>

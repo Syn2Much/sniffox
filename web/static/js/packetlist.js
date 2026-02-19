@@ -1,10 +1,11 @@
-// packetlist.js — Top pane: virtual-scrolled packet table
+// packetlist.js — Top pane: virtual-scrolled packet table with keyboard navigation
 'use strict';
 
 const PacketList = (() => {
     let packets = [];
     let displayIndices = []; // indices into packets[] that pass the current filter
     let selectedIndex = -1;
+    let selectedDisplayIdx = -1; // index within displayIndices for keyboard nav
     let filterFn = null;
 
     // DOM
@@ -124,6 +125,7 @@ const PacketList = (() => {
             const pkt = packets[pktIdx];
             const tr = document.createElement('tr');
             tr.dataset.index = pktIdx;
+            tr.dataset.displayIdx = i;
             tr.className = 'proto-' + pkt.protocol.toLowerCase();
             if (pktIdx === selectedIndex) tr.classList.add('selected');
             tr.style.height = ROW_HEIGHT + 'px';
@@ -135,7 +137,7 @@ const PacketList = (() => {
                 '<td>' + esc(pkt.protocol) + '</td>' +
                 '<td>' + pkt.length + '</td>' +
                 '<td title="' + esc(pkt.info) + '">' + esc(pkt.info) + '</td>';
-            tr.addEventListener('click', () => selectPacket(pktIdx, tr));
+            tr.addEventListener('click', () => selectPacket(pktIdx, tr, i));
             frag.appendChild(tr);
         }
 
@@ -149,15 +151,50 @@ const PacketList = (() => {
         tbody.appendChild(frag);
     }
 
-    function selectPacket(idx, tr) {
+    function selectPacket(idx, tr, displayIdx) {
         const prev = tbody.querySelector('tr.selected');
         if (prev) prev.classList.remove('selected');
-        tr.classList.add('selected');
+        if (tr) tr.classList.add('selected');
         selectedIndex = idx;
+        if (displayIdx !== undefined) selectedDisplayIdx = displayIdx;
 
         const pkt = packets[idx];
         PacketDetail.show(pkt);
         HexView.show(pkt);
+    }
+
+    // --- Keyboard Navigation ---
+    function navigateByKey(direction) {
+        if (displayIndices.length === 0) return;
+
+        let newDisplayIdx;
+        if (selectedDisplayIdx < 0) {
+            newDisplayIdx = direction > 0 ? 0 : displayIndices.length - 1;
+        } else {
+            newDisplayIdx = selectedDisplayIdx + direction;
+        }
+
+        // Clamp
+        newDisplayIdx = Math.max(0, Math.min(displayIndices.length - 1, newDisplayIdx));
+        if (newDisplayIdx === selectedDisplayIdx && selectedIndex >= 0) return;
+
+        selectedDisplayIdx = newDisplayIdx;
+        const pktIdx = displayIndices[newDisplayIdx];
+
+        // Ensure the row is visible (scroll if needed)
+        const rowTop = newDisplayIdx * ROW_HEIGHT;
+        const rowBottom = rowTop + ROW_HEIGHT;
+        if (rowTop < pane.scrollTop) {
+            pane.scrollTop = rowTop;
+        } else if (rowBottom > pane.scrollTop + pane.clientHeight) {
+            pane.scrollTop = rowBottom - pane.clientHeight;
+        }
+
+        // Find the rendered row or trigger re-render
+        renderViewport();
+
+        const tr = tbody.querySelector('tr[data-index="' + pktIdx + '"]');
+        selectPacket(pktIdx, tr, newDisplayIdx);
     }
 
     function applyFilter(filterText) {
@@ -171,6 +208,7 @@ const PacketList = (() => {
     function rebuildIndices() {
         displayIndices = [];
         selectedIndex = -1;
+        selectedDisplayIdx = -1;
         if (!filterFn) {
             for (let i = 0; i < packets.length; i++) {
                 displayIndices.push(i);
@@ -188,6 +226,7 @@ const PacketList = (() => {
         packets = [];
         displayIndices = [];
         selectedIndex = -1;
+        selectedDisplayIdx = -1;
         filterFn = null;
         pendingPackets = [];
         renderedRange = { start: 0, end: 0 };
@@ -214,7 +253,9 @@ const PacketList = (() => {
             '<div class="pkt-ctx-item" data-action="filter-flow">Filter by Flow</div>' +
             '<div class="pkt-ctx-sep"></div>' +
             '<div class="pkt-ctx-item" data-action="filter-src">Filter by Source IP</div>' +
-            '<div class="pkt-ctx-item" data-action="filter-dst">Filter by Dest IP</div>';
+            '<div class="pkt-ctx-item" data-action="filter-dst">Filter by Dest IP</div>' +
+            '<div class="pkt-ctx-sep"></div>' +
+            '<div class="pkt-ctx-item" data-action="deep-analysis">Deep Analysis</div>';
         document.body.appendChild(ctxMenu);
 
         ctxMenu.addEventListener('click', (e) => {
@@ -241,6 +282,17 @@ const PacketList = (() => {
         ctxMenu.style.display = 'block';
         ctxMenu.style.left = e.clientX + 'px';
         ctxMenu.style.top = e.clientY + 'px';
+
+        // Clamp to viewport
+        requestAnimationFrame(() => {
+            const rect = ctxMenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                ctxMenu.style.left = (e.clientX - rect.width) + 'px';
+            }
+            if (rect.bottom > window.innerHeight) {
+                ctxMenu.style.top = (e.clientY - rect.height) + 'px';
+            }
+        });
 
         // Enable/disable stream option
         const streamItem = ctxMenu.querySelector('[data-action="follow-stream"]');
@@ -293,6 +345,11 @@ const PacketList = (() => {
                 }
                 break;
             }
+            case 'deep-analysis':
+                if (typeof PacketModal !== 'undefined') {
+                    PacketModal.open(ctxPacket);
+                }
+                break;
         }
     }
 
@@ -307,5 +364,5 @@ const PacketList = (() => {
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    return { init, addPacket, applyFilter, clear, totalCount, displayedCount };
+    return { init, addPacket, applyFilter, clear, totalCount, displayedCount, navigateByKey };
 })();
