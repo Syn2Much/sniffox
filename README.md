@@ -22,7 +22,7 @@ Open `http://localhost:8080`, pick an interface, start sniffing.
 
 ## Features
 
-**Capture & Analysis** — Live capture with BPF filters or upload PCAP files. 14 protocols parsed (Ethernet, ARP, IPv4/v6, TCP, UDP, ICMP, ICMPv6, DNS, HTTP, TLS with SNI, DHCP, NTP, VLAN). Three-pane Wireshark-style layout with virtual scrolling and right-click context menu.
+**Capture & Analysis** — Live capture with BPF filters or upload PCAP files. 24 protocols parsed (Ethernet, ARP, IPv4/v6, TCP, UDP, ICMP, ICMPv6, DNS, HTTP, TLS, DHCP, NTP, VLAN, IGMP, GRE, SCTP, STP + heuristic detection for SSH, QUIC, MQTT, SIP, Modbus, RDP). Three-pane Wireshark-style layout with virtual scrolling and right-click context menu.
 
 **Display Filters** — Boolean logic (`tcp && !dns`), IP/port matching (`ip==10.0.0.1`, `port==443`), TLS inspection (`tls.sni==example.com`), direction filters (`inbound`, `outbound`, `broadcast`), flow/stream filters (`flow==1`, `stream==1`).
 
@@ -30,7 +30,17 @@ Open `http://localhost:8080`, pick an interface, start sniffing.
 
 **TCP Stream Reassembly** — Full byte-stream reconstruction with "Follow TCP Stream" dialog. Client/server data in alternating colors, ASCII/Hex/Raw views, automatic HTTP request/response extraction.
 
-**Security Dashboard** — Live threat level gauge, traffic rate sparklines, protocol distribution, top talkers, bandwidth monitoring, DDoS attack banner. 11 threat detectors including port scan, SYN flood, ARP spoofing, DNS tunneling, and more.
+**Timeline** — Interactive canvas-based packet timeline with protocol-colored lanes, mini-map with viewport indicator, zoom/pan, hover tooltips, and protocol filter chips.
+
+**Topology** — 2D force-directed host communication graph with physics simulation, node dragging/pinning, edge thickness by packet count, and dominant protocol coloring.
+
+**Endpoints** — Per-IP statistics table with sent/recv packet and byte counters, peer counts, protocol badges, first/last-seen timestamps, sortable columns, and search filtering.
+
+**Security Dashboard** — Live threat level gauge, traffic rate sparklines, protocol distribution, top talkers, bandwidth monitoring, DDoS attack banner, dstat-style per-protocol traffic graph. 14 threat detectors including port scan, SYN flood, ARP spoofing, DNS tunneling, IGMP flood, GRE tunnel detection, SIP brute force, and more.
+
+**Threat Intel** — MITRE ATT&CK technique mapping grid, IOC (Indicators of Compromise) tracking, per-host risk scoring with color bands, and geo-IP classification.
+
+**JA3 TLS Fingerprinting** — MD5 hash of client version, cipher suites, extensions, supported curves, and EC point formats with GREASE filtering for TLS client identification.
 
 **3D Network Graph** — Three.js visualization with IPs as nodes and packets as animated particles. Protocol color-coding, fullscreen mode, IP search, live stats. WebGL fallback when GPU unavailable.
 
@@ -42,15 +52,16 @@ Open `http://localhost:8080`, pick an interface, start sniffing.
 internal/
   models/      Packet & message types
   capture/     Live capture + PCAP reader
-  parser/      Protocol extraction (14 protocols)
+  parser/      Protocol extraction (24 protocols + JA3 fingerprinting)
   flow/        Flow tracking + TCP state machine
   stream/      TCP reassembly + HTTP extraction
-  engine/      Session manager, broadcast
+  engine/      Session manager, broadcast, protocol stats
   handlers/    HTTP routes, WebSocket
 
 web/static/
-  js/          app, router, packetlist, packetdetail, hexview,
-               filters, flows, streams, view3d, security, packetmodal
+  js/          app, router, packetlist, packetdetail, hexview, filters,
+               flows, streams, view3d, security, packetmodal, timeline,
+               topology, endpoints, threatintel
   css/         Dark / Dim / Light themes
 ```
 
