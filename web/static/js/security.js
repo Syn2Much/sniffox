@@ -11,6 +11,8 @@ const Security = (() => {
     const synTracker = {};      // ip -> { ports: Set, count, firstSeen }
     const connTracker = {};     // ip -> { dstPorts: Map<port, count>, firstSeen }
     const icmpTracker = {};     // ip -> { targets: Set, count, firstSeen }
+    const igmpTracker = {};     // ip -> { count, firstSeen }
+    const sipTracker = {};      // ip -> { count, firstSeen }
     const arpTable = {};        // ip -> { macs: Set }
     const dnsTracker = {};      // ip -> { queries: count, firstSeen, longNames: count }
     const udpFloodTracker = {}; // "src->dst" -> { count, firstSeen }
@@ -31,6 +33,8 @@ const Security = (() => {
     const DNS_TUNNEL_RATE = 30;           // DNS queries in window
     const UDP_FLOOD_THRESHOLD = 100;      // UDP packets same src->dst in window
     const LARGE_PACKET_SIZE = 9000;       // jumbo/amplification
+    const IGMP_FLOOD_THRESHOLD = 50;      // IGMP from same source in window
+    const SIP_BRUTE_THRESHOLD = 10;       // SIP REGISTER from same source in window
 
     const AUTH_PORTS = new Set(['22', '23', '3389', '5900', '21', '3306', '5432', '1433', '6379', '27017']);
 
@@ -41,7 +45,7 @@ const Security = (() => {
     let curBucket = { pkts: 0, bytes: 0, ts: 0 };
 
     // Protocol distribution — lifetime counters
-    const protoCounts = { tcp: 0, udp: 0, dns: 0, icmp: 0, arp: 0, http: 0, tls: 0, dhcp: 0, ntp: 0, other: 0 };
+    const protoCounts = { tcp: 0, udp: 0, dns: 0, icmp: 0, arp: 0, http: 0, tls: 0, dhcp: 0, ntp: 0, igmp: 0, gre: 0, sctp: 0, stp: 0, ssh: 0, quic: 0, mqtt: 0, sip: 0, modbus: 0, rdp: 0, other: 0 };
 
     // Top talkers — IP -> packet count
     const talkerCounts = {};
@@ -220,6 +224,39 @@ const Security = (() => {
             }
         }
 
+        // --- IGMP Flood ---
+        if (proto === 'igmp') {
+            if (!igmpTracker[srcIp]) igmpTracker[srcIp] = { count: 0, firstSeen: now };
+            const ig = igmpTracker[srcIp];
+            if (now - ig.firstSeen > WINDOW_MS) { ig.count = 0; ig.firstSeen = now; }
+            ig.count++;
+            if (ig.count >= IGMP_FLOOD_THRESHOLD) {
+                fireAlert(now, 'high', 'igmp_flood', 'IGMP Flood',
+                    `${srcIp}: ${ig.count} IGMP packets in ${(WINDOW_MS/1000)}s — possible multicast abuse`,
+                    pkt.number, srcIp);
+            }
+        }
+
+        // --- GRE Tunnel Detection ---
+        if (proto === 'gre') {
+            fireAlert(now, 'medium', 'gre_tunnel', 'GRE Tunnel Detected',
+                `${srcIp} -> ${dstIp}: GRE encapsulated traffic — potential tunnel/exfiltration`,
+                pkt.number, srcIp);
+        }
+
+        // --- SIP Brute Force ---
+        if (proto === 'sip' && info.toUpperCase().includes('REGISTER')) {
+            if (!sipTracker[srcIp]) sipTracker[srcIp] = { count: 0, firstSeen: now };
+            const st = sipTracker[srcIp];
+            if (now - st.firstSeen > WINDOW_MS) { st.count = 0; st.firstSeen = now; }
+            st.count++;
+            if (st.count >= SIP_BRUTE_THRESHOLD) {
+                fireAlert(now, 'high', 'sip_brute', 'SIP Registration Brute Force',
+                    `${srcIp}: ${st.count} SIP REGISTER requests in ${(WINDOW_MS/1000)}s`,
+                    pkt.number, srcIp);
+            }
+        }
+
         // --- Abnormally Large Packets (amplification) ---
         if (pkt.length > LARGE_PACKET_SIZE) {
             fireAlert(now, 'low', 'large_packet', 'Abnormally Large Packet',
@@ -246,6 +283,18 @@ const Security = (() => {
         curBucket.pkts++;
         curBucket.bytes += pktBytes;
 
+        // Dstat per-protocol rate tracking
+        if (curDstatBucket.ts !== sec) {
+            if (curDstatBucket.ts !== 0) {
+                dstatBuckets.push(Object.assign({}, curDstatBucket));
+                if (dstatBuckets.length > DSTAT_BUCKETS) dstatBuckets.shift();
+            }
+            curDstatBucket = { ts: sec };
+            for (const k of dstatProtoKeys) curDstatBucket[k] = 0;
+        }
+        const dstatKey = dstatProtoKeys.includes(proto) ? proto : 'other';
+        curDstatBucket[dstatKey] = (curDstatBucket[dstatKey] || 0) + 1;
+
         // Protocol counters
         if (proto === 'tcp') protoCounts.tcp++;
         else if (proto === 'udp') protoCounts.udp++;
@@ -256,6 +305,16 @@ const Security = (() => {
         else if (proto === 'tls') protoCounts.tls++;
         else if (proto === 'dhcp') protoCounts.dhcp++;
         else if (proto === 'ntp') protoCounts.ntp++;
+        else if (proto === 'igmp') protoCounts.igmp++;
+        else if (proto === 'gre') protoCounts.gre++;
+        else if (proto === 'sctp') protoCounts.sctp++;
+        else if (proto === 'stp') protoCounts.stp++;
+        else if (proto === 'ssh') protoCounts.ssh++;
+        else if (proto === 'quic') protoCounts.quic++;
+        else if (proto === 'mqtt') protoCounts.mqtt++;
+        else if (proto === 'sip') protoCounts.sip++;
+        else if (proto === 'modbus') protoCounts.modbus++;
+        else if (proto === 'rdp') protoCounts.rdp++;
         else protoCounts.other++;
 
         // Top talkers
@@ -309,6 +368,9 @@ const Security = (() => {
         // Record into activeAttacks
         const attackKey = type + ':' + srcIp;
         activeAttacks.set(attackKey, { type, severity, title, srcIp, lastSeen: now });
+
+        // Forward to threat intel module
+        addAlert({ type, severity, srcIp, title, detail });
 
         // Trigger DDoS banner for flood-type attacks
         if (type === 'syn_flood' || type === 'udp_flood') {
@@ -384,6 +446,18 @@ const Security = (() => {
 
     // ==================== DASHBOARD RENDERING (1s interval) ====================
 
+    // Dstat-like stacked area graph — per-protocol pkt/s over last 60s
+    const DSTAT_BUCKETS = 60;
+    const dstatProtoKeys = ['tcp','udp','dns','icmp','arp','http','tls','ssh','quic','other'];
+    let dstatBuckets = []; // [{ tcp:N, udp:N, ... , ts }]
+    let curDstatBucket = { ts: 0 };
+
+    const dstatColors = {
+        tcp: '#7aa2f7', udp: '#5cb4d6', dns: '#73daca', icmp: '#e0af68',
+        arp: '#ff9e64', http: '#9ece6a', tls: '#f5a0d0', ssh: '#cba6f7',
+        quic: '#f38ba8', other: '#585e74'
+    };
+
     function refreshDashboard() {
         const now = Date.now();
 
@@ -399,6 +473,7 @@ const Security = (() => {
         renderActiveAttacks();
         renderBandwidth();
         renderDdosBanner(now);
+        renderDstatGraph();
     }
 
     function renderThreatLevel() {
@@ -455,9 +530,8 @@ const Security = (() => {
         const el = document.getElementById('sec-proto-bars');
         if (!el) return;
 
-        const total = protoCounts.tcp + protoCounts.udp + protoCounts.dns +
-                      protoCounts.icmp + protoCounts.arp + protoCounts.http +
-                      protoCounts.tls + protoCounts.dhcp + protoCounts.ntp + protoCounts.other;
+        let total = 0;
+        for (const k in protoCounts) total += protoCounts[k];
 
         if (total === 0) {
             el.innerHTML = '<div class="sec-card-empty">No traffic yet</div>';
@@ -474,6 +548,16 @@ const Security = (() => {
             { key: 'tls', label: 'TLS' },
             { key: 'dhcp', label: 'DHCP' },
             { key: 'ntp', label: 'NTP' },
+            { key: 'igmp', label: 'IGMP' },
+            { key: 'gre', label: 'GRE' },
+            { key: 'sctp', label: 'SCTP' },
+            { key: 'stp', label: 'STP' },
+            { key: 'ssh', label: 'SSH' },
+            { key: 'quic', label: 'QUIC' },
+            { key: 'mqtt', label: 'MQTT' },
+            { key: 'sip', label: 'SIP' },
+            { key: 'modbus', label: 'Modbus' },
+            { key: 'rdp', label: 'RDP' },
             { key: 'other', label: 'Other' },
         ];
 
@@ -625,6 +709,67 @@ const Security = (() => {
         }
     }
 
+    function renderDstatGraph() {
+        const el = document.getElementById('sec-dstat-graph');
+        if (!el) return;
+        if (dstatBuckets.length < 2) {
+            el.innerHTML = '<div class="sec-card-empty">Collecting data...</div>';
+            return;
+        }
+        const w = 600, h = 120;
+        // Find max stacked value
+        let maxVal = 1;
+        for (const b of dstatBuckets) {
+            let sum = 0;
+            for (const k of dstatProtoKeys) sum += (b[k] || 0);
+            if (sum > maxVal) maxVal = sum;
+        }
+        const len = dstatBuckets.length;
+        const stepX = w / (DSTAT_BUCKETS - 1);
+        const offset = DSTAT_BUCKETS - len;
+
+        // Build stacked area paths (bottom to top)
+        let paths = '';
+        const cumulative = new Array(len).fill(0);
+        for (const pk of dstatProtoKeys) {
+            const prevCum = cumulative.slice();
+            for (let i = 0; i < len; i++) {
+                cumulative[i] += (dstatBuckets[i][pk] || 0);
+            }
+            // Build polygon: top line forward, bottom line backward
+            let topPts = '';
+            let bottomPts = '';
+            for (let i = 0; i < len; i++) {
+                const x = ((offset + i) * stepX).toFixed(1);
+                const yTop = (h - (cumulative[i] / maxVal) * (h - 4) - 2).toFixed(1);
+                const yBot = (h - (prevCum[i] / maxVal) * (h - 4) - 2).toFixed(1);
+                topPts += `${x},${yTop} `;
+                bottomPts = `${x},${yBot} ` + bottomPts;
+            }
+            paths += `<polygon points="${topPts}${bottomPts}" fill="${dstatColors[pk] || '#585e74'}" opacity="0.65"/>`;
+        }
+
+        // Legend
+        let legend = '';
+        for (const pk of dstatProtoKeys) {
+            let hasData = false;
+            for (const b of dstatBuckets) { if ((b[pk] || 0) > 0) { hasData = true; break; } }
+            if (!hasData) continue;
+            legend += `<span class="dstat-legend-item"><span class="dstat-legend-dot" style="background:${dstatColors[pk]}"></span>${pk.toUpperCase()}</span>`;
+        }
+
+        el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="dstat-svg">${paths}</svg>` +
+            `<div class="dstat-legend">${legend}</div>` +
+            `<div class="dstat-axis"><span>-${DSTAT_BUCKETS}s</span><span>now</span></div>`;
+    }
+
+    function addAlert(alert) {
+        // Forward alert to ThreatIntel if available
+        if (typeof ThreatIntel !== 'undefined' && ThreatIntel.addAlert) {
+            ThreatIntel.addAlert(alert);
+        }
+    }
+
     // ==================== HELPERS ====================
 
     function renderSparkline(data, maxLen, lineClass, fillClass) {
@@ -698,6 +843,8 @@ const Security = (() => {
         Object.keys(arpTable).forEach(k => delete arpTable[k]);
         Object.keys(dnsTracker).forEach(k => delete dnsTracker[k]);
         Object.keys(udpFloodTracker).forEach(k => delete udpFloodTracker[k]);
+        Object.keys(igmpTracker).forEach(k => delete igmpTracker[k]);
+        Object.keys(sipTracker).forEach(k => delete sipTracker[k]);
         Object.keys(firedAlerts).forEach(k => delete firedAlerts[k]);
         if (container) container.innerHTML = '<div class="empty-state">No alerts detected</div>';
         updateBadge();
@@ -705,15 +852,16 @@ const Security = (() => {
         // Reset dashboard state
         rateBuckets = [];
         curBucket.pkts = 0; curBucket.bytes = 0; curBucket.ts = 0;
-        protoCounts.tcp = 0; protoCounts.udp = 0; protoCounts.dns = 0;
-        protoCounts.icmp = 0; protoCounts.arp = 0; protoCounts.http = 0;
-        protoCounts.tls = 0; protoCounts.dhcp = 0; protoCounts.ntp = 0; protoCounts.other = 0;
+        for (const k in protoCounts) protoCounts[k] = 0;
         Object.keys(talkerCounts).forEach(k => delete talkerCounts[k]);
         bwInBytes = 0; bwOutBytes = 0; bwTotalIn = 0; bwTotalOut = 0;
         bwBuckets = [];
         curBwBucket.inB = 0; curBwBucket.outB = 0; curBwBucket.ts = 0;
         activeAttacks.clear();
         ddosState = null;
+        dstatBuckets = [];
+        curDstatBucket = { ts: 0 };
+        for (const k of dstatProtoKeys) curDstatBucket[k] = 0;
 
         // Re-render dashboard immediately
         refreshDashboard();
@@ -789,5 +937,5 @@ const Security = (() => {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    return { init, analyze, clear };
+    return { init, analyze, clear, addAlert };
 })();

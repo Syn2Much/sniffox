@@ -18,7 +18,7 @@
                     <span class="nav-icon">&#9654;</span> Capture
                 </a>
                 <a href="#/graph" class="nav-link" data-route="graph">
-                    <span class="nav-icon">&#9672;</span> Network Graph
+                    <span class="nav-icon">&#9672;</span> 3D Graph
                 </a>
                 <a href="#/security" class="nav-link" data-route="security">
                     <span class="nav-icon">&#9888;</span> Security
@@ -26,6 +26,18 @@
                 </a>
                 <a href="#/analysis" class="nav-link" data-route="analysis">
                     <span class="nav-icon">&#9881;</span> Analysis
+                </a>
+                <a href="#/timeline" class="nav-link" data-route="timeline">
+                    <span class="nav-icon">&#9866;</span> Timeline
+                </a>
+                <a href="#/topology" class="nav-link" data-route="topology">
+                    <span class="nav-icon">&#9737;</span> Topology
+                </a>
+                <a href="#/endpoints" class="nav-link" data-route="endpoints">
+                    <span class="nav-icon">&#9783;</span> Endpoints
+                </a>
+                <a href="#/threatintel" class="nav-link" data-route="threatintel">
+                    <span class="nav-icon">&#9760;</span> Threat Intel
                 </a>
             </div>
             <div class="nav-right">
@@ -74,6 +86,16 @@
                             <option value="dhcp">DHCP</option>
                             <option value="ntp">NTP</option>
                             <option value="icmpv6">ICMPv6</option>
+                            <option value="igmp">IGMP</option>
+                            <option value="gre">GRE</option>
+                            <option value="sctp">SCTP</option>
+                            <option value="stp">STP</option>
+                            <option value="ssh">SSH</option>
+                            <option value="quic">QUIC</option>
+                            <option value="mqtt">MQTT</option>
+                            <option value="sip">SIP</option>
+                            <option value="modbus">Modbus</option>
+                            <option value="rdp">RDP</option>
                         </optgroup>
                         <optgroup label="Combined">
                             <option value="tcp && !dns">TCP (no DNS)</option>
@@ -229,6 +251,9 @@
                         <span class="legend-item"><span class="legend-dot" style="background:var(--peach)"></span>ARP</span>
                         <span class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>ICMP</span>
                         <span class="legend-item"><span class="legend-dot" style="background:var(--pink)"></span>TLS</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:#a6e3a1"></span>IGMP</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:#cba6f7"></span>SSH</span>
+                        <span class="legend-item"><span class="legend-dot" style="background:#f38ba8"></span>QUIC</span>
                     </div>
                 </div>
                 <div id="v3d-controls-panel" class="v3d-controls-hidden">
@@ -242,6 +267,10 @@
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="icmp" checked> ICMP</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="tls" checked> TLS</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="ipv6" checked> IPv6</label>
+                        <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="ssh" checked> SSH</label>
+                        <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="quic" checked> QUIC</label>
+                        <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="igmp" checked> IGMP</label>
+                        <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="gre" checked> GRE</label>
                         <label class="v3d-proto-label"><input type="checkbox" class="v3d-proto-cb" data-proto="other" checked> Other</label>
                     </div>
                     <div class="v3d-ctrl-section">
@@ -349,7 +378,15 @@
                     </div>
                 </div>
 
-                <!-- Alert List (existing, unchanged) -->
+                <!-- Dstat-like Protocol Traffic Graph -->
+                <div class="sec-dstat-section">
+                    <div class="sec-dstat-header">Protocol Traffic Rate (dstat)</div>
+                    <div id="sec-dstat-graph" class="sec-dstat-graph">
+                        <div class="sec-card-empty">Collecting data...</div>
+                    </div>
+                </div>
+
+                <!-- Alert List -->
                 <div class="sec-alerts-section">
                     <div class="sec-alerts-header">Alert Log</div>
                     <div id="alert-list">
@@ -452,6 +489,91 @@
             </div>
         </div>
 
+        <!-- ==================== TIMELINE PAGE ==================== -->
+        <div class="page" data-page="timeline">
+            <div class="page-toolbar">
+                <span class="page-title">Event Timeline</span>
+                <span class="page-subtitle">Interactive timeline of network events with filterable protocol views</span>
+            </div>
+            <div class="timeline-body">
+                <div id="timeline-filters" class="timeline-filters"></div>
+                <div class="timeline-canvas-wrap">
+                    <canvas id="timeline-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TOPOLOGY PAGE ==================== -->
+        <div class="page" data-page="topology">
+            <div class="page-toolbar">
+                <span class="page-title">Network Topology</span>
+                <span class="page-subtitle">Force-directed host-to-host communication graph</span>
+            </div>
+            <div class="topology-body">
+                <canvas id="topology-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- ==================== ENDPOINTS PAGE ==================== -->
+        <div class="page" data-page="endpoints">
+            <div class="page-toolbar">
+                <span class="page-title">Endpoints</span>
+                <div id="endpoints-stats" class="endpoints-stats"></div>
+                <div class="endpoints-toolbar-right">
+                    <input type="text" id="endpoints-search" class="endpoints-search" placeholder="Search IP...">
+                </div>
+            </div>
+            <div class="endpoints-body">
+                <div class="endpoints-table-container">
+                    <table class="endpoints-table" id="endpoints-table">
+                        <thead>
+                            <tr>
+                                <th class="ep-th" data-sort="ip">IP Address</th>
+                                <th class="ep-th" data-sort="totalPackets">Packets</th>
+                                <th class="ep-th" data-sort="sentPackets">Sent</th>
+                                <th class="ep-th" data-sort="recvPackets">Recv</th>
+                                <th class="ep-th" data-sort="totalBytes">Bytes</th>
+                                <th class="ep-th" data-sort="peers">Peers</th>
+                                <th class="ep-th">Protocols</th>
+                                <th class="ep-th" data-sort="lastSeen">Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="endpoints-table-body">
+                            <tr><td colspan="8" class="ep-empty">No endpoints observed -- start a capture</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== THREAT INTEL PAGE ==================== -->
+        <div class="page" data-page="threatintel">
+            <div class="page-toolbar">
+                <span class="page-title">Threat Intelligence</span>
+                <span class="page-subtitle">MITRE ATT&amp;CK mapping, IOC analysis, and host risk scoring</span>
+            </div>
+            <div class="ti-body">
+                <div class="ti-section">
+                    <div class="ti-section-title">MITRE ATT&amp;CK Techniques</div>
+                    <div id="ti-mitre-grid" class="ti-mitre-grid"></div>
+                </div>
+                <div class="ti-grid-2col">
+                    <div class="ti-section">
+                        <div class="ti-section-title">Risk Score by Host</div>
+                        <div id="ti-risk-table" class="ti-risk-table"></div>
+                    </div>
+                    <div class="ti-section">
+                        <div class="ti-section-title">Geo-IP Summary</div>
+                        <div id="ti-geo-summary" class="ti-geo-summary"></div>
+                    </div>
+                </div>
+                <div class="ti-section">
+                    <div class="ti-section-title">Indicators of Compromise</div>
+                    <div id="ti-ioc-list" class="ti-ioc-list"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="status-bar">
             <div class="status-left">
                 <span><span id="connection-indicator" class="disconnected"></span><span id="connection-status">Disconnected</span></span>
@@ -507,6 +629,10 @@
     <script src="js/view3d.js"></script>
     <script src="js/security.js"></script>
     <script src="js/packetmodal.js"></script>
+    <script src="js/timeline.js"></script>
+    <script src="js/topology.js"></script>
+    <script src="js/endpoints.js"></script>
+    <script src="js/threatintel.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

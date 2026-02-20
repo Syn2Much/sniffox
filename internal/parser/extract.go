@@ -64,5 +64,13 @@ func ExtractFlowTuple(pkt gopacket.Packet) FlowTuple {
 		t.Protocol = "UDP"
 	}
 
+	// SCTP
+	if sctpLayer := pkt.Layer(layers.LayerTypeSCTP); sctpLayer != nil {
+		sctp := sctpLayer.(*layers.SCTP)
+		t.SrcPort = uint16(sctp.SrcPort)
+		t.DstPort = uint16(sctp.DstPort)
+		t.Protocol = "SCTP"
+	}
+
 	return t
 }

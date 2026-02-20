@@ -137,7 +137,8 @@ const Filters = (() => {
         // Protocol keywords (expanded)
         const protocols = [
             'tcp', 'udp', 'dns', 'arp', 'icmp', 'http', 'ipv6', 'ipv4', 'ethernet',
-            'tls', 'dhcp', 'ntp', 'icmpv6', 'vlan'
+            'tls', 'dhcp', 'ntp', 'icmpv6', 'vlan',
+            'igmp', 'gre', 'sctp', 'stp', 'ssh', 'quic', 'mqtt', 'sip', 'modbus', 'rdp'
         ];
         const lowerToken = token.toLowerCase();
         if (protocols.includes(lowerToken)) {

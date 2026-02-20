@@ -2,7 +2,7 @@
 'use strict';
 
 const Router = (() => {
-    const routes = ['capture', 'graph', 'security', 'analysis'];
+    const routes = ['capture', 'graph', 'security', 'analysis', 'timeline', 'topology', 'endpoints', 'threatintel'];
     const defaultRoute = 'capture';
     let currentRoute = '';
     let onChangeCallbacks = [];

@@ -64,6 +64,10 @@ const App = (() => {
         PacketModal.init();
         Flows.init();
         Streams.init();
+        if (typeof Timeline !== 'undefined') Timeline.init();
+        if (typeof Topology !== 'undefined') Topology.init();
+        if (typeof Endpoints !== 'undefined') Endpoints.init();
+        if (typeof ThreatIntel !== 'undefined') ThreatIntel.init();
         initResizers();
         initGraphControls();
         initCaptureViewTabs();
@@ -76,10 +80,9 @@ const App = (() => {
         // Initialize router last — it triggers page navigation
         Router.init();
         Router.onChange((route) => {
-            // Resize 3D view when graph page becomes visible
-            if (route === 'graph') {
-                View3D.onPageVisible();
-            }
+            if (route === 'graph') View3D.onPageVisible();
+            if (route === 'timeline' && typeof Timeline !== 'undefined') Timeline.onPageVisible();
+            if (route === 'topology' && typeof Topology !== 'undefined') Topology.onPageVisible();
         });
 
         connect();
@@ -210,13 +213,13 @@ const App = (() => {
                 }
             }
 
-            // Number keys 1-4 for quick page navigation (when not in input)
-            if (e.key >= '1' && e.key <= '4' && e.altKey) {
+            // Number keys 1-8 for quick page navigation (when not in input)
+            if (e.key >= '1' && e.key <= '8' && e.altKey) {
                 const active = document.activeElement;
                 const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
                 if (!isInput) {
                     e.preventDefault();
-                    const routes = ['capture', 'graph', 'security', 'analysis'];
+                    const routes = ['capture', 'graph', 'security', 'analysis', 'timeline', 'topology', 'endpoints', 'threatintel'];
                     const idx = parseInt(e.key) - 1;
                     if (routes[idx]) Router.navigate(routes[idx]);
                 }
@@ -276,6 +279,10 @@ const App = (() => {
             PacketList.addPacket(pkt);
             View3D.addPacket(pkt);
             Security.analyze(pkt);
+            if (typeof Timeline !== 'undefined') Timeline.addPacket(pkt);
+            if (typeof Topology !== 'undefined') Topology.addPacket(pkt);
+            if (typeof Endpoints !== 'undefined') Endpoints.addPacket(pkt);
+            if (typeof ThreatIntel !== 'undefined') ThreatIntel.addPacket(pkt);
             pktRateCount++;
         }
         updateCounts();
@@ -313,6 +320,14 @@ const App = (() => {
             case 'flows':
                 Flows.update(msg.payload);
                 updateFlowCount();
+                break;
+            case 'capture_stats':
+                updateStats(msg.payload);
+                break;
+            case 'stream_event':
+                if (typeof Streams !== 'undefined' && Streams.handleStreamEvent) {
+                    Streams.handleStreamEvent(msg.payload);
+                }
                 break;
         }
     }
@@ -444,6 +459,10 @@ const App = (() => {
         View3D.clear();
         Security.clear();
         Flows.clear();
+        if (typeof Timeline !== 'undefined') Timeline.clear();
+        if (typeof Topology !== 'undefined') Topology.clear();
+        if (typeof Endpoints !== 'undefined') Endpoints.clear();
+        if (typeof ThreatIntel !== 'undefined') ThreatIntel.clear();
         showWelcomeState();
         pktRateCount = 0;
         currentRate = 0;

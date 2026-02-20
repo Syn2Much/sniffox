@@ -182,6 +182,11 @@ func (c *WSClient) handleCommand(msg models.WSMessage) {
 		payload, _ := json.Marshal(data)
 		c.SendMessage(models.WSMessage{Type: "stream_data", Payload: payload})
 
+	case "get_protocol_stats":
+		stats := c.eng.GetProtocolStats()
+		payload, _ := json.Marshal(stats)
+		c.SendMessage(models.WSMessage{Type: "protocol_stats", Payload: payload})
+
 	default:
 		c.sendError("unknown command: " + msg.Type)
 	}

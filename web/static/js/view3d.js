@@ -36,6 +36,16 @@ const View3D = (() => {
         dhcp:   0x94e2d5,
         ntp:    0xf9e2af,
         icmpv6: 0xcba6f7,
+        igmp:   0xa6e3a1,
+        gre:    0xfab387,
+        sctp:   0x89b4fa,
+        stp:    0xf2cdcd,
+        ssh:    0xcba6f7,
+        quic:   0xf38ba8,
+        mqtt:   0x94e2d5,
+        sip:    0xf9e2af,
+        modbus: 0xb4befe,
+        rdp:    0xeba0ac,
     };
     const DEFAULT_COLOR = 0xc0caf5;
 

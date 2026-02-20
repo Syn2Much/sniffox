@@ -2,6 +2,33 @@
 
 All notable changes to Sniffox are documented here.
 
+## [0.10.0] - 2026-02-20
+
+### Added
+- **4 new analysis pages** with dedicated navigation tabs
+  - **Timeline** — interactive canvas-based packet timeline with protocol-colored lanes, mini-map, zoom/pan, hover tooltips, and protocol filter chips
+  - **Topology** — 2D force-directed host communication graph with physics simulation, node dragging/pinning, edge thickness by packet count, and protocol coloring
+  - **Endpoints** — per-IP statistics table with sent/recv packet and byte counters, peer counts, protocol badges, first/last-seen timestamps, sortable columns, and search filtering
+  - **Threat Intel** — MITRE ATT&CK technique mapping grid, IOC (Indicators of Compromise) tracking, per-host risk scoring with color bands, and geo-IP classification (private/public/multicast/loopback)
+- **10 new protocol parsers** (24 total)
+  - Network: IGMP (type, max response time, group address), GRE (protocol, checksum/key/sequence), SCTP (ports, verification tag, checksum), STP (protocol ID, version, root/bridge priority)
+  - Application heuristics: SSH (banner detection), QUIC (long header + version), MQTT (CONNECT packet + protocol level), SIP (method + call-ID), Modbus/TCP (function codes), RDP (TPKT + PDU type)
+  - New backend: `internal/parser/appheuristics.go`
+- **JA3 TLS fingerprinting** — MD5 hash of client version, cipher suites, extensions, supported curves, and EC point formats with GREASE filtering; cipher suite name lookup for 30+ suites
+- **Per-protocol statistics** — backend tracks packet/byte counts per protocol, broadcast to clients every 2s via `capture_stats` WebSocket message
+- **Dstat-style traffic graph** on Security dashboard — 60-second rolling stacked area chart showing per-protocol packet rates with legend
+- **3 new threat detectors** — IGMP flood, GRE tunnel detection, SIP brute force (REGISTER method)
+- **SCTP flow extraction** — SCTP packets now tracked in flow table with source/dest ports
+- Keyboard shortcuts extended to `Alt+1-8` for all 8 navigation routes
+- Protocol colors for all new protocols in packet list, 3D graph, and filter engine
+- Capture filter dropdown includes all new protocol options
+
+### Changed
+- Navigation expanded from 4 to 8 routes (added Timeline, Topology, Endpoints, Threat Intel)
+- DNS parser enhanced with response code, authority/additional record counts
+- Security dashboard forwards alerts to Threat Intel module
+- TLS detail view now shows JA3 hash, sorted cipher suites, extensions list, supported groups, and EC point formats
+
 ## [0.9.0] - 2026-02-19
 
 ### Added

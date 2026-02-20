@@ -22,6 +22,12 @@ type Client interface {
 	SendMessage(msg models.WSMessage) error
 }
 
+// ProtocolStat tracks per-protocol statistics.
+type ProtocolStat struct {
+	PacketCount int   `json:"packetCount"`
+	ByteCount   int64 `json:"byteCount"`
+}
+
 // Engine manages capture sessions and broadcasts packets to clients.
 type Engine struct {
 	mu          sync.Mutex
@@ -34,13 +40,17 @@ type Engine struct {
 
 	flowTracker *flow.Tracker
 	streamMgr   *stream.Manager
+
+	// Protocol statistics
+	protocolStats map[string]*ProtocolStat
 }
 
 // New creates a new Engine.
 func New() *Engine {
 	e := &Engine{
-		clients:     make(map[Client]bool),
-		flowTracker: flow.NewTracker(),
+		clients:       make(map[Client]bool),
+		flowTracker:   flow.NewTracker(),
+		protocolStats: make(map[string]*ProtocolStat),
 	}
 	return e
 }
@@ -102,6 +112,7 @@ func (e *Engine) StartCapture(req models.StartCaptureRequest) error {
 	e.stopCh = make(chan struct{})
 	e.streamMgr = smgr
 	e.flowTracker.Reset()
+	e.protocolStats = make(map[string]*ProtocolStat)
 	e.mu.Unlock()
 
 	payload, _ := json.Marshal(map[string]string{"interfaceName": req.Interface})
@@ -109,6 +120,7 @@ func (e *Engine) StartCapture(req models.StartCaptureRequest) error {
 
 	go e.captureLoop(lc.Packets())
 	go e.startFlowBroadcaster()
+	go e.startStatsBroadcaster()
 
 	return nil
 }
@@ -129,8 +141,6 @@ func (e *Engine) StopCapture() {
 	// Broadcast immediately so clients get instant feedback
 	e.broadcast(models.WSMessage{Type: "capture_stopped"})
 
-	// Then clean up — handle.Close() may block briefly until the
-	// pending pcap read returns, but the client already knows we stopped.
 	close(stopCh)
 	lc.Close()
 
@@ -151,6 +161,7 @@ func (e *Engine) LoadPcapFile(path string) error {
 	e.pktCount = 0
 	e.startTime = time.Time{}
 	e.flowTracker.Reset()
+	e.protocolStats = make(map[string]*ProtocolStat)
 	e.mu.Unlock()
 
 	source := reader.Packets()
@@ -167,6 +178,9 @@ func (e *Engine) LoadPcapFile(path string) error {
 		e.mu.Unlock()
 
 		info := parser.Parse(pkt, num, firstTS)
+
+		// Track protocol stats
+		e.trackProtocol(info.Protocol, info.Length)
 
 		// Flow tracking for pcap files too
 		tuple := parser.ExtractFlowTuple(pkt)
@@ -206,6 +220,17 @@ func (e *Engine) GetStreamData(id uint64) *stream.StreamDataResponse {
 	return smgr.GetStreamData(id)
 }
 
+// GetProtocolStats returns the current protocol statistics.
+func (e *Engine) GetProtocolStats() map[string]*ProtocolStat {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	result := make(map[string]*ProtocolStat, len(e.protocolStats))
+	for k, v := range e.protocolStats {
+		result[k] = &ProtocolStat{PacketCount: v.PacketCount, ByteCount: v.ByteCount}
+	}
+	return result
+}
+
 // BroadcastStreamEvent implements stream.Broadcaster.
 func (e *Engine) BroadcastStreamEvent(eventType string, payload json.RawMessage) {
 	evt := models.StreamEvent{
@@ -214,6 +239,18 @@ func (e *Engine) BroadcastStreamEvent(eventType string, payload json.RawMessage)
 	}
 	data, _ := json.Marshal(evt)
 	e.broadcast(models.WSMessage{Type: "stream_event", Payload: data})
+}
+
+func (e *Engine) trackProtocol(proto string, length int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	stat, ok := e.protocolStats[proto]
+	if !ok {
+		stat = &ProtocolStat{}
+		e.protocolStats[proto] = stat
+	}
+	stat.PacketCount++
+	stat.ByteCount += int64(length)
 }
 
 func (e *Engine) captureLoop(source *gopacket.PacketSource) {
@@ -244,6 +281,9 @@ func (e *Engine) captureLoop(source *gopacket.PacketSource) {
 
 		info := parser.Parse(pkt, num, startTime)
 
+		// Track protocol stats
+		e.trackProtocol(info.Protocol, info.Length)
+
 		// Flow tracking
 		tuple := parser.ExtractFlowTuple(pkt)
 		if tuple.Valid {
@@ -255,7 +295,6 @@ func (e *Engine) captureLoop(source *gopacket.PacketSource) {
 		if tcpLayer := pkt.Layer(layers.LayerTypeTCP); tcpLayer != nil && smgr != nil {
 			smgr.Feed(pkt)
 
-			// Look up stream ID
 			if pkt.NetworkLayer() != nil {
 				streamID := smgr.GetStreamID(pkt.NetworkLayer().NetworkFlow(), tcpLayer.(*layers.TCP).TransportFlow())
 				if streamID > 0 {
@@ -284,7 +323,6 @@ func (e *Engine) startFlowBroadcaster() {
 				continue
 			}
 
-			// Convert to FlowInfo
 			infos := make([]models.FlowInfo, 0, len(flows))
 			for _, f := range flows {
 				infos = append(infos, models.FlowInfo{
@@ -308,6 +346,36 @@ func (e *Engine) startFlowBroadcaster() {
 
 			payload, _ := json.Marshal(infos)
 			e.broadcast(models.WSMessage{Type: "flow_update", Payload: payload})
+		}
+	}
+}
+
+// startStatsBroadcaster ticks every 2s and broadcasts capture statistics.
+func (e *Engine) startStatsBroadcaster() {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-ticker.C:
+			e.mu.Lock()
+			pktCount := e.pktCount
+			protoStats := make(map[string]*ProtocolStat, len(e.protocolStats))
+			for k, v := range e.protocolStats {
+				protoStats[k] = &ProtocolStat{PacketCount: v.PacketCount, ByteCount: v.ByteCount}
+			}
+			e.mu.Unlock()
+
+			statsPayload := map[string]interface{}{
+				"packetCount":      pktCount,
+				"droppedCount":     0,
+				"protocolStats":    protoStats,
+			}
+
+			payload, _ := json.Marshal(statsPayload)
+			e.broadcast(models.WSMessage{Type: "capture_stats", Payload: payload})
 		}
 	}
 }
