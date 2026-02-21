@@ -1,16 +1,15 @@
 # Sniffox 🦊
 
-Real-time network packet analyzer in the browser. Capture, dissect, visualize, and detect threats — all from a single tab.
+Real-time packet analyzer that runs in your browser. Capture traffic, tear packets apart, visualize connections, spot threats — all from a single tab.
 
-Built with Go + embedded web UI. No Electron, no desktop app, just libpcap.
-
+Go backend with an embedded web UI. No Electron, no desktop app. Get a network view comparable to WireShark in the browser. 
 <img alt="Packet Capture" src="screenshots/capture.png" />
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 ![AI Assisted](https://img.shields.io/badge/AI-Assisted-blueviolet?logo=anthropic&logoColor=white)
 
-## Quick Start
+## Get Running
 
 ```bash
 sudo apt-get install -y libpcap-dev
@@ -18,51 +17,48 @@ go build -o sniffox .
 sudo ./sniffox --port 8080
 ```
 
-Open `http://localhost:8080`, pick an interface, start sniffing.
+Hit `http://localhost:8080`, pick an interface, and start sniffing.
 
-## Features
+## What It Does
 
-**Capture & Analysis** — Live capture with BPF filters or upload PCAP files. 24 protocols parsed (Ethernet, ARP, IPv4/v6, TCP, UDP, ICMP, ICMPv6, DNS, HTTP, TLS, DHCP, NTP, VLAN, IGMP, GRE, SCTP, STP + heuristic detection for SSH, QUIC, MQTT, SIP, Modbus, RDP). Three-pane Wireshark-style layout with virtual scrolling and right-click context menu.
+**Capture & Analysis** — Sniff live traffic with BPF filters or drop in a PCAP file. Parses 24 protocols (Ethernet, ARP, IPv4/v6, TCP, UDP, ICMP, ICMPv6, DNS, HTTP, TLS, DHCP, NTP, VLAN, IGMP, GRE, SCTP, STP + heuristic detection for SSH, QUIC, MQTT, SIP, Modbus, RDP). Wireshark-style three-pane layout with virtual scrolling and a right-click context menu.
 
-**Display Filters** — Boolean logic (`tcp && !dns`), IP/port matching (`ip==10.0.0.1`, `port==443`), TLS inspection (`tls.sni==example.com`), direction filters (`inbound`, `outbound`, `broadcast`), flow/stream filters (`flow==1`, `stream==1`).
-
-**Flow Tracking** — Packets grouped into connections with sortable flow table. Per-flow stats, TCP state machine (SYN_SENT through CLOSED), directional packet/byte counts. Click a flow to filter packets.
-
-**TCP Stream Reassembly** — Full byte-stream reconstruction with "Follow TCP Stream" dialog. Client/server data in alternating colors, ASCII/Hex/Raw views, automatic HTTP request/response extraction.
-
-**Timeline** — Interactive canvas-based packet timeline with protocol-colored lanes, mini-map with viewport indicator, zoom/pan, hover tooltips, and protocol filter chips.
-
-**Topology** — 2D force-directed host communication graph with physics simulation, node dragging/pinning, edge thickness by packet count, and dominant protocol coloring.
-
-**Endpoints** — Per-IP statistics table with sent/recv packet and byte counters, peer counts, protocol badges, first/last-seen timestamps, sortable columns, and search filtering.
-
-<img alt="Endpoints" src="screenshots/endpoints.png" />
-
-**Security Dashboard** — Live threat level gauge, traffic rate sparklines, protocol distribution, top talkers, bandwidth monitoring, DDoS attack banner, dstat-style per-protocol traffic graph. 14 threat detectors including port scan, SYN flood, ARP spoofing, DNS tunneling, IGMP flood, GRE tunnel detection, SIP brute force, and more.
-
-<img alt="Security Dashboard" src="screenshots/security.png" />
-
-**Threat Intel** — MITRE ATT&CK technique mapping grid, IOC (Indicators of Compromise) tracking, per-host risk scoring with color bands, and geo-IP classification.
-
-**JA3 TLS Fingerprinting** — MD5 hash of client version, cipher suites, extensions, supported curves, and EC point formats with GREASE filtering for TLS client identification.
-
-**3D Network Graph** — Three.js visualization with IPs as nodes and packets as animated particles. Protocol color-coding, fullscreen mode, IP search, live stats. WebGL fallback when GPU unavailable.
-
-**Topology** — Force-directed host communication map with protocol-colored edges and weighted node sizes.
-
-<img alt="Network Topology" src="screenshots/topology.png" />
-
-**Deep Packet Analysis** — Per-packet inspector with protocol layers, hex dump, byte distribution heatmap, Shannon entropy, payload decoding, and JSON/hex export.
+**Deep Packet Inspection** — Click into any packet to see protocol layers, hex dump, byte distribution heatmap, Shannon entropy, payload decoding, and JSON/hex export.
 
 <img alt="Deep Packet Analysis" src="screenshots/deep-analysis.png" />
 
-## Project Structure
+**Display Filters** — Boolean logic (`tcp && !dns`), IP/port matching (`ip==10.0.0.1`, `port==443`), TLS inspection (`tls.sni==example.com`), direction filters (`inbound`, `outbound`, `broadcast`), flow/stream filters (`flow==1`, `stream==1`).
+
+
+**Endpoints** — Per-IP stats: sent/received packets and bytes, peer count, protocol badges, first/last seen timestamps. Sortable and searchable.
+
+<img alt="Endpoints" src="screenshots/endpoints.png" />
+
+**Flow Tracking** — Groups packets into connections with a sortable flow table. Per-flow stats, TCP state machine tracking (SYN_SENT through CLOSED), directional packet/byte counts. Click any flow to filter down to its packets.
+
+**Security Dashboard** — Threat level gauge, traffic rate sparklines, protocol breakdown, top talkers, bandwidth monitor, DDoS banner, and a dstat-style per-protocol traffic graph. Ships with 14 threat detectors — port scan, SYN flood, ARP spoofing, DNS tunneling, IGMP flood, GRE tunnel detection, SIP brute force, and more.
+
+<img alt="Security Dashboard" src="screenshots/security.png" />
+
+**TCP Stream Reassembly** — Reconstructs the full byte stream. "Follow TCP Stream" shows client/server data in alternating colors with ASCII/Hex/Raw views and pulls out HTTP request/response pairs automatically.
+
+**Topology** — Force-directed graph of who's talking to who. Physics sim, draggable/pinnable nodes, edge thickness scales with packet count, colored by dominant protocol.
+
+<img alt="Network Topology" src="screenshots/topology.png" />
+
+**Threat Intel** — MITRE ATT&CK mapping grid, IOC tracking, per-host risk scores with color bands, and geo-IP classification.
+
+**JA3 Fingerprinting** — Hashes client TLS handshakes (version, cipher suites, extensions, curves, EC point formats) with GREASE filtering. Useful for identifying clients beyond what user-agent strings tell you.
+
+**3D Network Graph** — Three.js viz where IPs are nodes and packets fly between them as animated particles. Protocol color-coding, fullscreen, IP search, live stats. Falls back gracefully when WebGL isn't available.
+
+## Project Layout
 
 ```
 internal/
   models/      Packet & message types
   capture/     Live capture + PCAP reader
-  parser/      Protocol extraction (24 protocols + JA3 fingerprinting)
+  parser/      Protocol extraction (24 protocols + JA3)
   flow/        Flow tracking + TCP state machine
   stream/      TCP reassembly + HTTP extraction
   engine/      Session manager, broadcast, protocol stats
@@ -77,4 +73,4 @@ web/static/
 
 ## Dependencies
 
-[gopacket](https://github.com/google/gopacket) for packet capture, [gorilla/websocket](https://github.com/gorilla/websocket) for WebSocket, [Three.js](https://threejs.org/) r128 for 3D visualization.
+[gopacket](https://github.com/google/gopacket) for packet capture, [gorilla/websocket](https://github.com/gorilla/websocket) for WebSocket, [Three.js](https://threejs.org/) r128 for the 3D stuff.
