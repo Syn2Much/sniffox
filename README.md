@@ -44,15 +44,17 @@ Open `http://localhost:8080`, pick an interface, start sniffing.
 
 **Threat Intel** — MITRE ATT&CK technique mapping grid, IOC (Indicators of Compromise) tracking, per-host risk scoring with color bands, and geo-IP classification.
 
-<img alt="Threat Intelligence" src="screenshots/threatintel.png" />
-
 **JA3 TLS Fingerprinting** — MD5 hash of client version, cipher suites, extensions, supported curves, and EC point formats with GREASE filtering for TLS client identification.
 
 **3D Network Graph** — Three.js visualization with IPs as nodes and packets as animated particles. Protocol color-coding, fullscreen mode, IP search, live stats. WebGL fallback when GPU unavailable.
 
+**Topology** — Force-directed host communication map with protocol-colored edges and weighted node sizes.
+
 <img alt="Network Topology" src="screenshots/topology.png" />
 
 **Deep Packet Analysis** — Per-packet inspector with protocol layers, hex dump, byte distribution heatmap, Shannon entropy, payload decoding, and JSON/hex export.
+
+<img alt="Deep Packet Analysis" src="screenshots/deep-analysis.png" />
 
 ## Project Structure
 
