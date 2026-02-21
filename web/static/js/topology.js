@@ -292,15 +292,16 @@ const Topology = (() => {
     function render() {
         if (!ctx || !canvas) return;
 
+        const dpr = window.devicePixelRatio || 1;
         const w = canvas.width;
         const h = canvas.height;
 
         ctx.clearRect(0, 0, w, h);
         ctx.save();
 
-        // Apply viewport transform
-        const cx = w / 2;
-        const cy = h / 2;
+        // Apply viewport transform (use CSS pixel center, not physical pixel center)
+        const cx = w / dpr / 2;
+        const cy = h / dpr / 2;
         ctx.translate(cx, cy);
         ctx.scale(zoom, zoom);
         ctx.translate(-viewX, -viewY);
