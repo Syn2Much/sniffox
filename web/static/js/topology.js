@@ -699,5 +699,9 @@ const Topology = (() => {
         }
     }
 
-    return { init, addPacket, clear, onPageVisible };
+    function onPageHidden() {
+        stopAnimation();
+    }
+
+    return { init, addPacket, clear, onPageVisible, onPageHidden };
 })();

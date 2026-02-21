@@ -298,6 +298,7 @@ const Timeline = (() => {
     //  Rendering
     // =====================================================================
     function startRenderLoop() {
+        if (rafId) return;
         function tick() {
             rafId = requestAnimationFrame(tick);
             if (needsRedraw) {
@@ -306,6 +307,17 @@ const Timeline = (() => {
             }
         }
         rafId = requestAnimationFrame(tick);
+    }
+
+    function stopRenderLoop() {
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+    }
+
+    function onPageHidden() {
+        stopRenderLoop();
     }
 
     function draw() {
@@ -857,5 +869,5 @@ const Timeline = (() => {
     // =====================================================================
     //  Public API
     // =====================================================================
-    return { init, addPacket, clear, onPageVisible };
+    return { init, addPacket, clear, onPageVisible, onPageHidden };
 })();

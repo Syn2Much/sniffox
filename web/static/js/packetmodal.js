@@ -123,7 +123,7 @@ const PacketModal = (() => {
             return;
         }
 
-        const flagField = tcpLayer.fields.find(f => f.name === 'Flags');
+        const flagField = tcpLayer.fields && tcpLayer.fields.find(f => f.name === 'Flags');
         const flagStr = flagField ? flagField.value : '';
         const allFlags = ['URG', 'ACK', 'PSH', 'RST', 'SYN', 'FIN'];
 

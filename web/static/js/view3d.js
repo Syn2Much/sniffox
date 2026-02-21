@@ -5,6 +5,7 @@
 const View3D = (() => {
     let scene, camera, renderer, controls, canvas;
     let animating = true;
+    let animFrameId = null;
     let expanded = false;
     let initialized = false;
     let isDarkTheme = true;
@@ -83,7 +84,15 @@ const View3D = (() => {
         if (!initialized) {
             initScene();
         } else {
+            if (!animFrameId) animate();
             setTimeout(updateRendererSize, 50);
+        }
+    }
+
+    function onPageHidden() {
+        if (animFrameId) {
+            cancelAnimationFrame(animFrameId);
+            animFrameId = null;
         }
     }
 
@@ -618,7 +627,7 @@ const View3D = (() => {
     }
 
     function animate() {
-        requestAnimationFrame(animate);
+        animFrameId = requestAnimationFrame(animate);
 
         if (controls) controls.update();
 
@@ -797,5 +806,5 @@ const View3D = (() => {
         addGrid();
     }
 
-    return { init, addPacket, clear, updateTheme, onPageVisible };
+    return { init, addPacket, clear, updateTheme, onPageVisible, onPageHidden };
 })();

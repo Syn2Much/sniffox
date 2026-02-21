@@ -80,6 +80,12 @@ const App = (() => {
         // Initialize router last — it triggers page navigation
         Router.init();
         Router.onChange((route) => {
+            // Stop animation loops on pages we're leaving
+            if (route !== 'graph') View3D.onPageHidden();
+            if (route !== 'timeline' && typeof Timeline !== 'undefined') Timeline.onPageHidden();
+            if (route !== 'topology' && typeof Topology !== 'undefined') Topology.onPageHidden();
+
+            // Start animation loops on the page we're entering
             if (route === 'graph') View3D.onPageVisible();
             if (route === 'timeline' && typeof Timeline !== 'undefined') Timeline.onPageVisible();
             if (route === 'topology' && typeof Topology !== 'undefined') Topology.onPageVisible();
