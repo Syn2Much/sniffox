@@ -4,7 +4,7 @@ Real-time network packet analyzer in the browser. Capture, dissect, visualize, a
 
 Built with Go + embedded web UI. No Electron, no desktop app, just libpcap.
 
-<img alt="image" src="https://github.com/user-attachments/assets/a6a07d9b-04b4-4130-b933-17aed86aaa4a" />
+<img alt="Packet Capture" src="screenshots/capture.png" />
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -36,13 +36,21 @@ Open `http://localhost:8080`, pick an interface, start sniffing.
 
 **Endpoints** — Per-IP statistics table with sent/recv packet and byte counters, peer counts, protocol badges, first/last-seen timestamps, sortable columns, and search filtering.
 
+<img alt="Endpoints" src="screenshots/endpoints.png" />
+
 **Security Dashboard** — Live threat level gauge, traffic rate sparklines, protocol distribution, top talkers, bandwidth monitoring, DDoS attack banner, dstat-style per-protocol traffic graph. 14 threat detectors including port scan, SYN flood, ARP spoofing, DNS tunneling, IGMP flood, GRE tunnel detection, SIP brute force, and more.
 
+<img alt="Security Dashboard" src="screenshots/security.png" />
+
 **Threat Intel** — MITRE ATT&CK technique mapping grid, IOC (Indicators of Compromise) tracking, per-host risk scoring with color bands, and geo-IP classification.
+
+<img alt="Threat Intelligence" src="screenshots/threatintel.png" />
 
 **JA3 TLS Fingerprinting** — MD5 hash of client version, cipher suites, extensions, supported curves, and EC point formats with GREASE filtering for TLS client identification.
 
 **3D Network Graph** — Three.js visualization with IPs as nodes and packets as animated particles. Protocol color-coding, fullscreen mode, IP search, live stats. WebGL fallback when GPU unavailable.
+
+<img alt="Network Topology" src="screenshots/topology.png" />
 
 **Deep Packet Analysis** — Per-packet inspector with protocol layers, hex dump, byte distribution heatmap, Shannon entropy, payload decoding, and JSON/hex export.
 
