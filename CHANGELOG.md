@@ -2,6 +2,16 @@
 
 All notable changes to Sniffox are documented here.
 
+## [0.10.1] - 2026-02-21
+
+### Fixed
+- **Topology graph off-center on HiDPI displays** — render viewport used `canvas.width` (physical pixels) for center calculation while the canvas context already had a DPR scale transform, pushing the graph to the bottom-right corner on Retina/2x screens
+- **Animation loops burning CPU on hidden pages** — timeline, topology, and 3D graph RAF loops now stop when the user navigates away and restart on return
+- **Crash in deep analysis on non-standard TCP packets** — `tcpLayer.fields` could be undefined, causing `.find()` to throw when opening the flag visualization
+
+### Added
+- Screenshots of live capture added to README (capture, security dashboard, endpoints, topology, deep packet analysis)
+
 ## [0.10.0] - 2026-02-20
 
 ### Added
