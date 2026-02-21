@@ -2,7 +2,7 @@
 
 Real-time packet analyzer that runs in your browser. Capture traffic, tear packets apart, visualize connections, spot threats — all from a single tab.
 
-Go backend with an embedded web UI. No Electron, no desktop app. Get a network view comparable to WireShark in the browser. 
+Go backend with an embedded web UI. No Electron, no desktop app. Visualize your servers entire network from within the browser.
 <img alt="Packet Capture" src="screenshots/capture.png" />
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
