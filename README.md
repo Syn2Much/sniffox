@@ -40,6 +40,18 @@ Hit `http://localhost:8080`, pick an interface, and start sniffing.
 
 <img alt="Security Dashboard" src="screenshots/security.png" />
 
+**Sessions** — Track capture sessions with start/stop timestamps, packet counts, and protocol breakdowns. Resume or compare previous sessions side by side.
+
+<img alt="Sessions" src="screenshots/sessions.png" />
+
+**Command Palette** — Quick-access overlay for navigating views, applying filters, and running actions from the keyboard.
+
+<img alt="Command Palette" src="screenshots/command-palette.png" />
+
+**Timeline** — Chronological packet activity view with protocol-colored bars showing traffic density over time.
+
+<img alt="Timeline" src="screenshots/timeline.png" />
+
 **TCP Stream Reassembly** — Reconstructs the full byte stream. "Follow TCP Stream" shows client/server data in alternating colors with ASCII/Hex/Raw views and pulls out HTTP request/response pairs automatically.
 
 **Topology** — Force-directed graph of who's talking to who. Physics sim, draggable/pinnable nodes, edge thickness scales with packet count, colored by dominant protocol.
@@ -48,9 +60,13 @@ Hit `http://localhost:8080`, pick an interface, and start sniffing.
 
 **Threat Intel** — MITRE ATT&CK mapping grid, IOC tracking, per-host risk scores with color bands, and geo-IP classification.
 
+<img alt="Threat Intel" src="screenshots/threatintel.png" />
+
 **JA3 Fingerprinting** — Hashes client TLS handshakes (version, cipher suites, extensions, curves, EC point formats) with GREASE filtering. Useful for identifying clients beyond what user-agent strings tell you.
 
 **3D Network Graph** — Three.js viz where IPs are nodes and packets fly between them as animated particles. Protocol color-coding, fullscreen, IP search, live stats. Falls back gracefully when WebGL isn't available.
+
+<img alt="3D Network Graph" src="screenshots/3d-graph.png" />
 
 ## Project Layout
 
@@ -67,7 +83,8 @@ internal/
 web/static/
   js/          app, router, packetlist, packetdetail, hexview, filters,
                flows, streams, view3d, security, packetmodal, timeline,
-               topology, endpoints, threatintel
+               topology, endpoints, threatintel, sessions, bookmarks,
+               commandpalette
   css/         Dark / Dim / Light themes
 ```
 
