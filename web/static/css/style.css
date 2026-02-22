@@ -3087,7 +3087,458 @@ input:focus-visible {
     font-size: 12px;
 }
 
-/* ==================== RESPONSIVE NAV FOR 8 TABS ==================== */
+/* ==================== PCAP EXPORT BUTTON ==================== */
+.toolbar-btn-link {
+    font-family: inherit;
+    font-size: 12px;
+    background: var(--bg-overlay);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 10px;
+    outline: none;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s, transform 0.1s;
+}
+.toolbar-btn-link:hover {
+    background: var(--bg-muted);
+}
+
+/* ==================== BOOKMARKS ==================== */
+.pkt-star {
+    color: var(--yellow);
+    margin-right: 4px;
+    font-size: 11px;
+}
+
+tr.bookmarked {
+    background: rgba(224, 175, 104, 0.06) !important;
+}
+tr.bookmarked:hover {
+    background: rgba(224, 175, 104, 0.12) !important;
+}
+
+.bookmark-badge {
+    font-size: 9px;
+    font-weight: 700;
+    background: var(--yellow);
+    color: var(--bg-base);
+    padding: 1px 5px;
+    border-radius: 8px;
+    margin-left: 6px;
+    min-width: 16px;
+    text-align: center;
+    line-height: 14px;
+}
+
+.bookmarks-panel {
+    position: fixed;
+    top: 42px;
+    right: -340px;
+    width: 340px;
+    height: calc(100vh - 42px - 24px);
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.25s ease;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+}
+.bookmarks-panel.bookmarks-visible {
+    right: 0;
+}
+
+.bookmarks-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.bookmarks-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--yellow);
+}
+
+.bookmarks-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.bookmarks-clear-btn,
+.bookmarks-close-btn {
+    font-family: inherit;
+    font-size: 12px;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-sub);
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.bookmarks-clear-btn:hover,
+.bookmarks-close-btn:hover {
+    background: var(--bg-muted);
+}
+
+.bookmarks-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.bookmarks-empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 40px 16px;
+    font-size: 12px;
+}
+
+.bookmark-item {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+.bookmark-item:hover {
+    border-color: var(--yellow);
+}
+
+.bookmark-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.bookmark-num {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 12px;
+}
+
+.bookmark-proto {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--teal);
+    background: rgba(115, 218, 202, 0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
+.bookmark-addrs {
+    font-size: 10px;
+    color: var(--text-dim);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bookmark-remove {
+    font-family: inherit;
+    font-size: 14px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+.bookmark-remove:hover {
+    color: var(--red);
+}
+
+.bookmark-info {
+    font-size: 10px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.bookmark-note {
+    width: 100%;
+    font-family: inherit;
+    font-size: 11px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-main);
+    padding: 4px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.bookmark-note:focus {
+    border-color: var(--yellow);
+}
+
+/* ==================== COMMAND PALETTE ==================== */
+.cmd-palette {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 15vh;
+}
+.cmd-palette.cmd-palette-visible {
+    display: flex;
+}
+
+.cmd-palette-dialog {
+    width: 520px;
+    max-height: 420px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(122, 162, 247, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: cmd-palette-in 0.15s ease;
+}
+
+@keyframes cmd-palette-in {
+    from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.cmd-palette-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.cmd-palette-icon {
+    font-size: 16px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.cmd-palette-input {
+    flex: 1;
+    font-family: inherit;
+    font-size: 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    outline: none;
+}
+.cmd-palette-input::placeholder {
+    color: var(--text-dim);
+}
+
+.cmd-palette-esc {
+    flex-shrink: 0;
+    font-size: 9px;
+}
+
+.cmd-palette-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.cmd-palette-section {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    padding: 8px 10px 4px;
+}
+
+.cmd-palette-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.cmd-palette-item:hover,
+.cmd-palette-item-selected {
+    background: var(--selection-strong);
+}
+
+.cmd-palette-item-icon {
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+    color: var(--text-dim);
+}
+.cmd-palette-item-selected .cmd-palette-item-icon {
+    color: var(--accent);
+}
+
+.cmd-palette-item-label {
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+.cmd-palette-empty {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 20px;
+    font-size: 12px;
+}
+
+.cmd-palette-footer {
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-dim);
+}
+.cmd-palette-footer .kbd {
+    font-size: 9px;
+    padding: 1px 4px;
+    margin: 0 2px;
+}
+
+/* ==================== SESSIONS PAGE ==================== */
+.sessions-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.sessions-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.sessions-empty-icon {
+    font-size: 48px;
+    opacity: 0.4;
+}
+
+.sessions-empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.sessions-empty-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 360px;
+    line-height: 1.6;
+}
+
+.sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.session-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.session-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(122, 162, 247, 0.08);
+}
+
+.session-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.session-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.session-delete-btn {
+    font-family: inherit;
+    font-size: 16px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.session-delete-btn:hover {
+    color: var(--red);
+}
+
+.session-card-meta {
+    margin-bottom: 12px;
+}
+
+.session-meta-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 12px;
+}
+
+.session-meta-label {
+    color: var(--text-dim);
+}
+
+.session-meta-val {
+    color: var(--text-sub);
+    font-weight: 600;
+}
+
+.session-load-btn {
+    width: 100%;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px;
+    background: var(--selection-strong);
+    border: 1px solid rgba(122, 162, 247, 0.2);
+    border-radius: 6px;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.session-load-btn:hover {
+    background: rgba(122, 162, 247, 0.2);
+}
+
+/* ==================== RESPONSIVE NAV FOR 9 TABS ==================== */
 @media (max-width: 1200px) {
     .nav-link {
         padding: 5px 8px;

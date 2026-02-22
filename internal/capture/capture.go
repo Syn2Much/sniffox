@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 )
 
@@ -72,6 +73,11 @@ func (lc *LiveCapture) Packets() *gopacket.PacketSource {
 // Interface returns the interface name.
 func (lc *LiveCapture) Interface() string {
 	return lc.iface
+}
+
+// LinkType returns the link layer type for the capture.
+func (lc *LiveCapture) LinkType() layers.LinkType {
+	return lc.handle.LinkType()
 }
 
 // Stats returns capture statistics.

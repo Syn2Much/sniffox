@@ -39,6 +39,9 @@
                 <a href="#/threatintel" class="nav-link" data-route="threatintel">
                     <span class="nav-icon">&#9760;</span> Threat Intel
                 </a>
+                <a href="#/sessions" class="nav-link" data-route="sessions">
+                    <span class="nav-icon">&#128190;</span> Sessions
+                </a>
             </div>
             <div class="nav-right">
                 <button id="btn-theme" title="Cycle theme: Dark / Dim / Light">
@@ -120,6 +123,8 @@
                         Open PCAP
                         <input type="file" id="pcap-file" accept=".pcap,.pcapng,.cap">
                     </button>
+                    <a id="btn-export" class="toolbar-btn-link" href="/api/export" title="Download captured packets as PCAP">&#11015; Export</a>
+                    <button id="btn-save-session" title="Save current capture as a session">&#128190; Save</button>
                     <button id="btn-clear">Clear</button>
                 </div>
             </div>
@@ -157,6 +162,7 @@
                         <div class="welcome-shortcut"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">F</kbd> Focus filter</div>
                         <div class="welcome-shortcut"><kbd class="kbd">&uarr;</kbd><kbd class="kbd">&darr;</kbd> Navigate packets</div>
                         <div class="welcome-shortcut"><kbd class="kbd">Esc</kbd> Dismiss overlays</div>
+                        <div class="welcome-shortcut"><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">K</kbd> Command palette</div>
                     </div>
                 </div>
 
@@ -574,6 +580,15 @@
             </div>
         </div>
 
+        <!-- ==================== SESSIONS PAGE ==================== -->
+        <div class="page" data-page="sessions">
+            <div class="page-toolbar">
+                <span class="page-title">Sessions</span>
+                <span class="page-subtitle">Browse and load saved capture sessions</span>
+            </div>
+            <div class="sessions-body" id="sessions-body"></div>
+        </div>
+
         <div id="status-bar">
             <div class="status-left">
                 <span><span id="connection-indicator" class="disconnected"></span><span id="connection-status">Disconnected</span></span>
@@ -620,6 +635,9 @@
     </div>
 
     <script src="js/router.js"></script>
+    <script src="js/bookmarks.js"></script>
+    <script src="js/commandpalette.js"></script>
+    <script src="js/sessions.js"></script>
     <script src="js/filters.js"></script>
     <script src="js/hexview.js"></script>
     <script src="js/packetdetail.js"></script>

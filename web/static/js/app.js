@@ -68,10 +68,14 @@ const App = (() => {
         if (typeof Topology !== 'undefined') Topology.init();
         if (typeof Endpoints !== 'undefined') Endpoints.init();
         if (typeof ThreatIntel !== 'undefined') ThreatIntel.init();
+        if (typeof Bookmarks !== 'undefined') Bookmarks.init();
+        if (typeof CommandPalette !== 'undefined') CommandPalette.init();
+        if (typeof Sessions !== 'undefined') Sessions.init();
         initResizers();
         initGraphControls();
         initCaptureViewTabs();
         initKeyboardShortcuts();
+        initSaveSession();
         loadTheme();
 
         // Packet rate display
@@ -89,6 +93,9 @@ const App = (() => {
             if (route === 'graph') View3D.onPageVisible();
             if (route === 'timeline' && typeof Timeline !== 'undefined') Timeline.onPageVisible();
             if (route === 'topology' && typeof Topology !== 'undefined') Topology.onPageVisible();
+
+            // Refresh sessions list when navigating to sessions page
+            if (route === 'sessions' && typeof Sessions !== 'undefined') Sessions.loadList();
         });
 
         connect();
@@ -219,13 +226,13 @@ const App = (() => {
                 }
             }
 
-            // Number keys 1-8 for quick page navigation (when not in input)
-            if (e.key >= '1' && e.key <= '8' && e.altKey) {
+            // Number keys 1-9 for quick page navigation (when not in input)
+            if (e.key >= '1' && e.key <= '9' && e.altKey) {
                 const active = document.activeElement;
                 const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
                 if (!isInput) {
                     e.preventDefault();
-                    const routes = ['capture', 'graph', 'security', 'analysis', 'timeline', 'topology', 'endpoints', 'threatintel'];
+                    const routes = ['capture', 'graph', 'security', 'analysis', 'timeline', 'topology', 'endpoints', 'threatintel', 'sessions'];
                     const idx = parseInt(e.key) - 1;
                     if (routes[idx]) Router.navigate(routes[idx]);
                 }
@@ -565,6 +572,17 @@ const App = (() => {
                 setTimeout(() => toast.remove(), 250);
             }
         }, 4500);
+    }
+
+    // --- Save Session Button ---
+    function initSaveSession() {
+        const btn = document.getElementById('btn-save-session');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            if (typeof Sessions !== 'undefined') {
+                Sessions.saveFromPalette();
+            }
+        });
     }
 
     // --- Resizers ---

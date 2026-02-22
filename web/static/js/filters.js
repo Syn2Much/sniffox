@@ -186,6 +186,24 @@ const Filters = (() => {
             };
         }
 
+        // bookmarked — show only bookmarked packets
+        if (lowerToken === 'bookmarked' || lowerToken === 'starred') {
+            return {
+                func: (pkt) => typeof Bookmarks !== 'undefined' && Bookmarks.isBookmarked(pkt.number),
+                end
+            };
+        }
+
+        // number==N — filter by packet number
+        const numMatch = token.match(/^number\s*={1,2}\s*(\d+)$/i);
+        if (numMatch) {
+            const num = parseInt(numMatch[1], 10);
+            return {
+                func: (pkt) => pkt.number === num,
+                end
+            };
+        }
+
         // flow==N — filter by flow ID
         const flowMatch = token.match(/^flow\s*={1,2}\s*(\d+)$/i);
         if (flowMatch) {

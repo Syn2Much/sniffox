@@ -3,12 +3,14 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcapgo"
 
 	"sniffox/internal/capture"
 	"sniffox/internal/flow"
@@ -28,6 +30,13 @@ type ProtocolStat struct {
 	ByteCount   int64 `json:"byteCount"`
 }
 
+// rawPacket stores raw packet data for PCAP export.
+type rawPacket struct {
+	Data      []byte
+	CaptureAt time.Time
+	Length    int
+}
+
 // Engine manages capture sessions and broadcasts packets to clients.
 type Engine struct {
 	mu          sync.Mutex
@@ -43,6 +52,10 @@ type Engine struct {
 
 	// Protocol statistics
 	protocolStats map[string]*ProtocolStat
+
+	// Raw packet storage for PCAP export
+	rawPackets []rawPacket
+	linkType   layers.LinkType
 }
 
 // New creates a new Engine.
@@ -113,6 +126,8 @@ func (e *Engine) StartCapture(req models.StartCaptureRequest) error {
 	e.streamMgr = smgr
 	e.flowTracker.Reset()
 	e.protocolStats = make(map[string]*ProtocolStat)
+	e.rawPackets = nil
+	e.linkType = lc.LinkType()
 	e.mu.Unlock()
 
 	payload, _ := json.Marshal(map[string]string{"interfaceName": req.Interface})
@@ -162,6 +177,8 @@ func (e *Engine) LoadPcapFile(path string) error {
 	e.startTime = time.Time{}
 	e.flowTracker.Reset()
 	e.protocolStats = make(map[string]*ProtocolStat)
+	e.rawPackets = nil
+	e.linkType = reader.LinkType()
 	e.mu.Unlock()
 
 	source := reader.Packets()
@@ -175,6 +192,11 @@ func (e *Engine) LoadPcapFile(path string) error {
 		e.mu.Lock()
 		e.pktCount++
 		num := e.pktCount
+		e.rawPackets = append(e.rawPackets, rawPacket{
+			Data:      pkt.Data(),
+			CaptureAt: pkt.Metadata().Timestamp,
+			Length:    pkt.Metadata().Length,
+		})
 		e.mu.Unlock()
 
 		info := parser.Parse(pkt, num, firstTS)
@@ -218,6 +240,43 @@ func (e *Engine) GetStreamData(id uint64) *stream.StreamDataResponse {
 		return nil
 	}
 	return smgr.GetStreamData(id)
+}
+
+// ExportPcap writes all stored packets as a PCAP file to the given writer.
+func (e *Engine) ExportPcap(w io.Writer) error {
+	e.mu.Lock()
+	pkts := make([]rawPacket, len(e.rawPackets))
+	copy(pkts, e.rawPackets)
+	lt := e.linkType
+	e.mu.Unlock()
+
+	if len(pkts) == 0 {
+		return fmt.Errorf("no packets to export")
+	}
+
+	writer := pcapgo.NewWriter(w)
+	if err := writer.WriteFileHeader(65535, lt); err != nil {
+		return fmt.Errorf("write pcap header: %w", err)
+	}
+
+	for _, p := range pkts {
+		ci := gopacket.CaptureInfo{
+			Timestamp:     p.CaptureAt,
+			CaptureLength: len(p.Data),
+			Length:        p.Length,
+		}
+		if err := writer.WritePacket(ci, p.Data); err != nil {
+			return fmt.Errorf("write packet: %w", err)
+		}
+	}
+	return nil
+}
+
+// PacketCount returns the current packet count.
+func (e *Engine) PacketCount() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return len(e.rawPackets)
 }
 
 // GetProtocolStats returns the current protocol statistics.
@@ -277,6 +336,11 @@ func (e *Engine) captureLoop(source *gopacket.PacketSource) {
 		num := e.pktCount
 		startTime := e.startTime
 		smgr := e.streamMgr
+		e.rawPackets = append(e.rawPackets, rawPacket{
+			Data:      pkt.Data(),
+			CaptureAt: pkt.Metadata().Timestamp,
+			Length:    pkt.Metadata().Length,
+		})
 		e.mu.Unlock()
 
 		info := parser.Parse(pkt, num, startTime)

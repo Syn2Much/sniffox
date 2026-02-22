@@ -2,6 +2,21 @@
 
 All notable changes to Sniffox are documented here.
 
+## [0.11.0] - 2026-02-22
+
+### Added
+- **PCAP Export/Download** — "Export" button in the capture toolbar downloads all captured packets as a `.pcap` file; backend stores raw packet bytes and link type during live capture and PCAP import, writes valid PCAP via `pcapgo.Writer` at `/api/export`
+- **Packet Bookmarks & Annotations** — right-click any packet row to bookmark it; bookmarked packets show a gold star indicator and subtle row highlight; slide-out bookmarks panel (toolbar button) lists all bookmarks with editable note fields, quick navigation, and remove buttons; `bookmarked` display filter keyword shows only starred packets; persisted in localStorage
+- **Command Palette (Ctrl+K)** — Spotlight-style overlay with fuzzy search across 30+ commands: page navigation, capture controls (start/stop/clear/export/save session), display filter presets, theme switching, and tool shortcuts; keyboard navigable with arrow keys + Enter
+- **Session Persistence** — save the current capture to the server as a named session (PCAP + JSON metadata in `sessions/` directory); new "Sessions" page with card grid showing session name, date, packet count, and file size; load any past session to replay it in the capture view; delete sessions; accessible from nav bar, toolbar "Save" button, and command palette
+- `number==N` display filter to jump to a specific packet by number
+- Keyboard shortcut `Alt+9` for Sessions page navigation
+
+### Changed
+- Navigation expanded from 8 to 9 routes (added Sessions)
+- Context menu gains "Bookmark Packet" / "Remove Bookmark" toggle as first item
+- Welcome state shows `Ctrl+K` command palette shortcut hint
+
 ## [0.10.1] - 2026-02-21
 
 ### Fixed

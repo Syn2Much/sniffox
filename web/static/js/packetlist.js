@@ -129,8 +129,10 @@ const PacketList = (() => {
             tr.className = 'proto-' + pkt.protocol.toLowerCase();
             if (pktIdx === selectedIndex) tr.classList.add('selected');
             tr.style.height = ROW_HEIGHT + 'px';
+            const bm = typeof Bookmarks !== 'undefined' && Bookmarks.isBookmarked(pkt.number);
+            if (bm) tr.classList.add('bookmarked');
             tr.innerHTML =
-                '<td>' + pkt.number + '</td>' +
+                '<td>' + (bm ? '<span class="pkt-star">&#9733;</span>' : '') + pkt.number + '</td>' +
                 '<td>' + pkt.timestamp + '</td>' +
                 '<td title="' + esc(pkt.srcAddr) + '">' + esc(pkt.srcAddr) + '</td>' +
                 '<td title="' + esc(pkt.dstAddr) + '">' + esc(pkt.dstAddr) + '</td>' +
@@ -249,6 +251,8 @@ const PacketList = (() => {
         ctxMenu.className = 'pkt-context-menu';
         ctxMenu.style.display = 'none';
         ctxMenu.innerHTML =
+            '<div class="pkt-ctx-item" data-action="toggle-bookmark">&#9733; Bookmark Packet</div>' +
+            '<div class="pkt-ctx-sep"></div>' +
             '<div class="pkt-ctx-item" data-action="follow-stream">Follow TCP Stream</div>' +
             '<div class="pkt-ctx-item" data-action="filter-flow">Filter by Flow</div>' +
             '<div class="pkt-ctx-sep"></div>' +
@@ -294,6 +298,14 @@ const PacketList = (() => {
             }
         });
 
+        // Update bookmark label
+        const bmItem = ctxMenu.querySelector('[data-action="toggle-bookmark"]');
+        if (bmItem && typeof Bookmarks !== 'undefined') {
+            bmItem.innerHTML = Bookmarks.isBookmarked(ctxPacket.number)
+                ? '&#9733; Remove Bookmark'
+                : '&#9734; Bookmark Packet';
+        }
+
         // Enable/disable stream option
         const streamItem = ctxMenu.querySelector('[data-action="follow-stream"]');
         if (streamItem) {
@@ -318,6 +330,14 @@ const PacketList = (() => {
         const filterInput = document.getElementById('display-filter');
 
         switch (action) {
+            case 'toggle-bookmark':
+                if (typeof Bookmarks !== 'undefined') {
+                    Bookmarks.toggle(ctxPacket);
+                    // Force re-render to update bookmark indicator
+                    renderedRange = { start: 0, end: 0 };
+                    renderViewport();
+                }
+                break;
             case 'follow-stream':
                 if (ctxPacket.streamId && typeof Streams !== 'undefined') {
                     Streams.open(ctxPacket.streamId);
