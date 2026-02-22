@@ -3,7 +3,8 @@
 Real-time packet analyzer that runs in your browser. Capture traffic, tear packets apart, visualize connections, spot threats — all from a single tab.
 
 Go backend with an embedded web UI. No Electron, no desktop app. Visualize your servers entire network from within the browser.
-<img alt="Packet Capture" src="screenshots/capture.png" />
+<img width="1905" height="1022" alt="image" src="https://github.com/user-attachments/assets/d54e7036-5012-47a6-b0b6-b0b9ae75680b" />
+
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -25,7 +26,8 @@ Hit `http://localhost:8080`, pick an interface, and start sniffing.
 
 **Deep Packet Inspection** — Click into any packet to see protocol layers, hex dump, byte distribution heatmap, Shannon entropy, payload decoding, and JSON/hex export.
 
-<img alt="Deep Packet Analysis" src="screenshots/deep-analysis.png" />
+<img width="1910" height="1027" alt="image" src="https://github.com/user-attachments/assets/2677985b-a3b1-4aa7-b78c-1190cef42f1b" />
+
 
 **Display Filters** — Boolean logic (`tcp && !dns`), IP/port matching (`ip==10.0.0.1`, `port==443`), TLS inspection (`tls.sni==example.com`), direction filters (`inbound`, `outbound`, `broadcast`), flow/stream filters (`flow==1`, `stream==1`).
 
@@ -36,21 +38,8 @@ Hit `http://localhost:8080`, pick an interface, and start sniffing.
 
 **Flow Tracking** — Groups packets into connections with a sortable flow table. Per-flow stats, TCP state machine tracking (SYN_SENT through CLOSED), directional packet/byte counts. Click any flow to filter down to its packets.
 
-**Security Dashboard** — Threat level gauge, traffic rate sparklines, protocol breakdown, top talkers, bandwidth monitor, DDoS banner, and a dstat-style per-protocol traffic graph. Ships with 14 threat detectors — port scan, SYN flood, ARP spoofing, DNS tunneling, IGMP flood, GRE tunnel detection, SIP brute force, and more.
+<img width="1905" height="562" alt="image" src="https://github.com/user-attachments/assets/b2169c4f-8c08-4b69-8e08-0718b216515e" />
 
-<img alt="Security Dashboard" src="screenshots/security.png" />
-
-**Sessions** — Track capture sessions with start/stop timestamps, packet counts, and protocol breakdowns. Resume or compare previous sessions side by side.
-
-<img alt="Sessions" src="screenshots/sessions.png" />
-
-**Command Palette** — Quick-access overlay for navigating views, applying filters, and running actions from the keyboard.
-
-<img alt="Command Palette" src="screenshots/command-palette.png" />
-
-**Timeline** — Chronological packet activity view with protocol-colored bars showing traffic density over time.
-
-<img alt="Timeline" src="screenshots/timeline.png" />
 
 **TCP Stream Reassembly** — Reconstructs the full byte stream. "Follow TCP Stream" shows client/server data in alternating colors with ASCII/Hex/Raw views and pulls out HTTP request/response pairs automatically.
 
@@ -62,7 +51,6 @@ Hit `http://localhost:8080`, pick an interface, and start sniffing.
 
 <img alt="Threat Intel" src="screenshots/threatintel.png" />
 
-**JA3 Fingerprinting** — Hashes client TLS handshakes (version, cipher suites, extensions, curves, EC point formats) with GREASE filtering. Useful for identifying clients beyond what user-agent strings tell you.
 
 **3D Network Graph** — Three.js viz where IPs are nodes and packets fly between them as animated particles. Protocol color-coding, fullscreen, IP search, live stats. Falls back gracefully when WebGL isn't available.
 
