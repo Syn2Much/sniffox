@@ -227,6 +227,7 @@ const Timeline = (() => {
     function onPageVisible() {
         computeLayout();
         needsRedraw = true;
+        startRenderLoop();
     }
 
     // =====================================================================
