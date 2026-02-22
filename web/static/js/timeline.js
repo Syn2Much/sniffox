@@ -153,7 +153,7 @@ const Timeline = (() => {
     function addPacket(pkt) {
         if (!pkt) return;
         const proto = (pkt.protocol || 'unknown').toLowerCase();
-        const absTime = parseFloat(pkt.time) || 0;
+        const absTime = parseFloat(pkt.timestamp) || 0;
 
         if (firstTime === null) {
             firstTime = absTime;
@@ -805,7 +805,7 @@ const Timeline = (() => {
                 esc(pkt.srcAddr) + ' &rarr; ' + esc(pkt.dstAddr) +
             '</div>' +
             '<div style="color:var(--text-dim);font-size:10px;margin-top:2px;">' +
-                'Time: ' + formatTime(pkt.time) + ' | ' +
+                'Time: ' + formatTime(pkt.timestamp) + ' | ' +
                 pkt.length + ' bytes' +
             '</div>' +
             (pkt.info ? '<div style="color:var(--text-dim);font-size:10px;margin-top:2px;' +

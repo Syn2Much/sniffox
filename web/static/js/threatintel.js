@@ -116,7 +116,7 @@ const ThreatIntel = (() => {
         const dstPort = extractPort(pkt.dstAddr);
         const proto = (pkt.protocol || '').toLowerCase();
         const info = pkt.info || '';
-        const now = pkt.time || Date.now();
+        const now = pkt.timestamp || Date.now();
 
         // Track source IP
         if (srcIp) {

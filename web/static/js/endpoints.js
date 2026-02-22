@@ -70,7 +70,7 @@ const Endpoints = (() => {
         const dstAddr = stripPort(pkt.dstAddr || '');
         const protocol = (pkt.protocol || 'Unknown').toUpperCase();
         const length = pkt.length || 0;
-        const time = pkt.time || Date.now();
+        const time = pkt.timestamp || Date.now();
 
         if (!srcAddr && !dstAddr) return;
 
