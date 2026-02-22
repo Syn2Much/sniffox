@@ -2,6 +2,12 @@
 
 All notable changes to Sniffox are documented here.
 
+## [0.11.1] - 2026-02-22
+
+### Fixed
+- **Timeline render loop not restarting** — navigating away from the timeline page stopped the animation frame loop, but returning never restarted it, leaving the canvas blank
+- **Wrong packet field name in timeline, endpoints, and threat intel** — JS code referenced `pkt.time` (undefined) instead of `pkt.timestamp`, causing all three views to receive `0` for every packet timestamp
+
 ## [0.11.0] - 2026-02-22
 
 ### Added
